@@ -356,7 +356,7 @@
         };
 
         const appDefinitions = {
-            browser: { title: 'Nexus', icon: 'globe', color: 'text-cyan-400', img: svgWeb, singleInstance: true, instanceFuncs: {}, render: () => `<div class="h-full bg-gray-900 flex flex-col text-sm"><div class="bg-gray-800 p-2 flex gap-2 border-b border-gray-700 items-center shadow-md z-10"><div class="flex items-center gap-2 text-gray-400"><button class="hover:text-cyan-400 transition-colors p-1 browser-back"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-forward"><i data-lucide="arrow-right" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-reload"><i data-lucide="rotate-cw" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-home"><i data-lucide="home" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-proxy text-green-400" title="Toggle Proxy Shield"><i data-lucide="shield" class="w-4 h-4"></i></button></div><input type="text" class="browser-url flex-1 bg-gray-900 border border-gray-700 rounded-full px-4 py-1.5 text-gray-200 text-xs focus:outline-none focus:border-cyan-500 transition-colors shadow-inner" placeholder="Search the Nexus..."></div><div class="flex-1 bg-white relative overflow-hidden"><iframe class="browser-frame w-full h-full border-none hidden bg-white" sandbox="allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts"></iframe><div class="browser-mock absolute inset-0 bg-gray-900 overflow-y-auto"></div></div></div>`, init: (id, root, startUrl) => { const frame = root.querySelector('.browser-frame'); const mock = root.querySelector('.browser-mock'); const input = root.querySelector('.browser-url'); let useProxy = true; const proxyBtn = root.querySelector('.browser-proxy'); proxyBtn.onclick = () => { useProxy = !useProxy; if(useProxy) { proxyBtn.classList.remove('text-gray-500'); proxyBtn.classList.add('text-green-400'); } else { proxyBtn.classList.remove('text-green-400'); proxyBtn.classList.add('text-gray-500'); } if(input.value && input.value !== 'home') load(input.value); }; const load = (url) => { let target = url.trim(); if(target === 'home' || !target) { mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900 via-gray-900 to-black relative overflow-hidden"><div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:30px_30px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_20%,transparent_100%)] pointer-events-none"></div><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none"><span class="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 drop-shadow-[0_0_15px_rgba(34,211,238,0.3)]">NEXUS</span></div><div class="w-full max-w-md relative"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"></i><input type="text" class="home-search w-full bg-gray-800/80 backdrop-blur border border-gray-600 rounded-full py-3 pl-12 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 shadow-xl transition-all" placeholder="Search the web..."></div></div></div>`; setTimeout(() => { const hs = mock.querySelector('.home-search'); if(hs){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value); }}; } }, 10); mock.classList.remove('hidden'); frame.classList.add('hidden'); lucide.createIcons({root: mock}); return; } if(target.startsWith('/')) { const file = fs.getPath(target); frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; mock.classList.add('hidden'); frame.classList.remove('hidden'); input.value = "file://" + target; return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://search.yahoo.com/search?p=' + encodeURIComponent(target); } } mock.classList.add('hidden'); frame.classList.remove('hidden'); if(useProxy) { const PROXY_URL = "https://nexus-proxy.fdfdfdsd0.workers.dev/?url="; frame.src = PROXY_URL + encodeURIComponent(target); } else { frame.src = target; } input.value = target; }; appDefinitions.browser.instanceFuncs[id] = load; root.querySelector('.browser-home').onclick = () => load('home'); input.onkeydown = (e) => { if(e.key==='Enter') load(input.value); }; load(startUrl || 'home'); } },
+            browser: { title: 'Nexus', icon: 'globe', color: 'text-cyan-400', img: svgWeb, singleInstance: true, instanceFuncs: {}, render: () => `<div class="h-full bg-gray-900 flex flex-col text-sm"><div class="bg-gray-800 p-2 flex gap-2 border-b border-gray-700 items-center shadow-md z-10"><div class="flex items-center gap-2 text-gray-400"><button class="hover:text-cyan-400 transition-colors p-1 browser-back"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-forward"><i data-lucide="arrow-right" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-reload"><i data-lucide="rotate-cw" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-home"><i data-lucide="home" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-proxy text-green-400" title="Toggle Proxy Shield"><i data-lucide="shield" class="w-4 h-4"></i></button></div><input type="text" class="browser-url flex-1 bg-gray-900 border border-gray-700 rounded-full px-4 py-1.5 text-gray-200 text-xs focus:outline-none focus:border-cyan-500 transition-colors shadow-inner" placeholder="Search the Nexus..."></div><div class="flex-1 bg-white relative overflow-hidden"><iframe class="browser-frame w-full h-full border-none hidden bg-white" sandbox="allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts"></iframe><div class="browser-mock absolute inset-0 bg-gray-900 overflow-y-auto"></div></div></div>`, init: (id, root, startUrl) => { const frame = root.querySelector('.browser-frame'); const mock = root.querySelector('.browser-mock'); const input = root.querySelector('.browser-url'); let useProxy = true; const proxyBtn = root.querySelector('.browser-proxy'); proxyBtn.onclick = () => { useProxy = !useProxy; if(useProxy) { proxyBtn.classList.remove('text-gray-500'); proxyBtn.classList.add('text-green-400'); } else { proxyBtn.classList.remove('text-green-400'); proxyBtn.classList.add('text-gray-500'); } if(input.value && input.value !== 'home') load(input.value); }; const load = (url) => { let target = url.trim(); if(target === 'home' || !target) { mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900 via-gray-900 to-black relative overflow-hidden"><div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:30px_30px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_20%,transparent_100%)] pointer-events-none"></div><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none"><span class="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 drop-shadow-[0_0_15px_rgba(34,211,238,0.3)]">NEXUS</span></div><div class="w-full max-w-md relative"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"></i><input type="text" class="home-search w-full bg-gray-800/80 backdrop-blur border border-gray-600 rounded-full py-3 pl-12 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 shadow-xl transition-all" placeholder="Search the web..."></div></div></div>`; setTimeout(() => { const hs = mock.querySelector('.home-search'); if(hs){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value); }}; } }, 10); mock.classList.remove('hidden'); frame.classList.add('hidden'); lucide.createIcons({root: mock}); return; } if(target.startsWith('/')) { const file = fs.getPath(target); frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; mock.classList.add('hidden'); frame.classList.remove('hidden'); input.value = "file://" + target; return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://www.bing.com/search?q=' + encodeURIComponent(target); } } mock.classList.add('hidden'); frame.classList.remove('hidden'); if(useProxy) { const PROXY_URL = "https://nexus-proxy.fdfdfdsd0.workers.dev/?url="; frame.src = PROXY_URL + encodeURIComponent(target); } else { frame.src = target; } input.value = target; }; appDefinitions.browser.instanceFuncs[id] = load; root.querySelector('.browser-home').onclick = () => load('home'); input.onkeydown = (e) => { if(e.key==='Enter') load(input.value); }; load(startUrl || 'home'); } },
             paint: { title: 'Paint', icon: 'brush', color: 'text-pink-400', render: () => `<div class="h-full flex flex-col bg-white"><div class="p-2 border-b flex gap-2 items-center bg-gray-100"><input type="color" class="paint-color" value="#000000"><input type="range" class="paint-size" min="1" max="20" value="5" class="w-24"><button class="paint-clear px-2 py-1 bg-gray-200 rounded text-xs">Clear</button></div><div class="flex-1 relative cursor-crosshair overflow-hidden"><canvas class="paint-canvas absolute inset-0"></canvas></div></div>`, init: (id, root) => { const canvas = root.querySelector('.paint-canvas'); const ctx = canvas.getContext('2d'); const color = root.querySelector('.paint-color'); const size = root.querySelector('.paint-size'); let painting = false; const resize = () => { canvas.width = canvas.parentElement.offsetWidth; canvas.height = canvas.parentElement.offsetHeight; }; setTimeout(resize, 10); const draw = (e) => { if (!painting) return; const rect = canvas.getBoundingClientRect(); ctx.lineWidth = size.value; ctx.lineCap = 'round'; ctx.strokeStyle = color.value; ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top); ctx.stroke(); ctx.beginPath(); ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top); }; canvas.addEventListener('mousedown', (e) => { painting = true; draw(e); }); canvas.addEventListener('mouseup', () => { painting = false; ctx.beginPath(); }); canvas.addEventListener('mousemove', draw); root.querySelector('.paint-clear').onclick = () => ctx.clearRect(0,0,canvas.width,canvas.height); } },
             calculator: { title: 'Calculator', icon: 'calculator', color: 'text-gray-200', width: '300px', height: '400px', render: () => `<div class="h-full bg-gray-900 flex flex-col p-4"><input type="text" class="calc-display w-full bg-gray-800 text-right text-3xl text-white p-4 rounded mb-4 outline-none" readonly value="0"><div class="grid grid-cols-4 gap-2 flex-1 button-grid"></div></div>`, init: (id, root) => { const display = root.querySelector('.calc-display'); const buttons = ['C','/','*','-','7','8','9','+','4','5','6','=','1','2','3','0']; const grid = root.querySelector('.button-grid'); let current = ''; buttons.forEach(btn => { const b = document.createElement('button'); b.className = `rounded text-xl font-bold transition-colors ${btn === '=' ? 'row-span-2 bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'} ${btn === '0' ? 'col-span-2' : ''}`; b.innerText = btn; b.onclick = () => { if(btn === 'C') { current = ''; display.value = '0'; } else if(btn === '=') { try { display.value = eval(current); current = display.value; } catch { display.value = 'Error'; current = ''; } } else { current += btn; display.value = current; } }; grid.appendChild(b); }); } },
             editor: { title: 'Code Editor', icon: 'code', color: 'text-yellow-400', render: () => `<div class="h-full bg-[#1e1e1e] flex flex-col"><div class="bg-[#2d2d2d] px-2 py-1 text-xs text-gray-300 flex items-center justify-between border-b border-gray-700"><div class="flex gap-2 items-center"><button class="editor-save hover:bg-white/10 px-2 py-1 rounded text-blue-400 font-bold">Save</button><button class="editor-run hover:bg-white/10 px-2 py-1 rounded text-green-400 font-bold flex gap-1 items-center"><i data-lucide="play" class="w-3 h-3"></i> Run</button><button class="editor-pub hover:bg-white/10 px-2 py-1 rounded text-purple-400 font-bold flex gap-1 items-center"><i data-lucide="cloud-upload" class="w-3 h-3"></i> Publish</button><span class="text-gray-500">|</span><span class="editor-filename text-gray-400">Untitled</span></div><div class="editor-msg text-green-400 opacity-0 transition-opacity">Saved!</div></div><textarea class="editor-content flex-1 bg-[#1e1e1e] text-gray-200 p-4 terminal-font resize-none focus:outline-none text-sm leading-relaxed" spellcheck="false" placeholder="<html>...</html>"></textarea></div>`, init: (id, root, filePath) => { const ta = root.querySelector('.editor-content'); const label = root.querySelector('.editor-filename'); const msg = (txt) => { const el = root.querySelector('.editor-msg'); el.innerText = txt; el.classList.remove('opacity-0'); setTimeout(() => el.classList.add('opacity-0'), 2000); }; if(filePath) { label.innerText = filePath; const f = fs.getPath(filePath); if(f) ta.value = f.content; } root.querySelector('.editor-save').onclick = () => { let path = filePath; if (!path) path = prompt("Save as (e.g. /home/user/apps/myapp.html):"); if (!path) return; if (!path.includes('.')) path += '.html'; if(path.includes('/apps/') && !fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir'); if(fs.createPath(path, 'file', ta.value)) { filePath = path; label.innerText = path; msg("Saved!"); } }; root.querySelector('.editor-run').onclick = () => window.openApp('runner', { content: ta.value, name: filePath || 'Preview' }); root.querySelector('.editor-pub').onclick = () => window.openPublishModal(async (name, desc, author) => { if(!db) { alert("Offline."); return; } try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'apps'), { name, description: desc, content: ta.value, author, timestamp: serverTimestamp() }); alert(`"${name}" Published!`); } catch(e) { alert(e.message); } }); } },
@@ -408,8 +408,28 @@
 
         let zIndex = 100;
         const windows = {};
+
+        const saveSession = () => {
+            const sessionData = Object.entries(windows).map(([id, win]) => {
+                if(win.isOverlay) return null; // We skip saving full external popouts to prevent errors
+                return {
+                    appId: win.appId,
+                    arg: win.arg,
+                    x: win.element.style.left,
+                    y: win.element.style.top,
+                    width: win.element.style.width,
+                    height: win.element.style.height,
+                    zIndex: win.element.style.zIndex,
+                    minimized: win.minimized,
+                    maximized: win.maximized,
+                    workspace: win.workspace
+                };
+            }).filter(Boolean);
+            localStorage.setItem('nexus_os_session', JSON.stringify(sessionData));
+        };
+
         const appManager = {
-            openApp: (appId, arg) => {
+            openApp: (appId, arg, restoreState = null) => {
                 const def = appDefinitions[appId];
                 if (!def) return;
 
@@ -422,9 +442,12 @@
                 const win = document.createElement('div');
                 win.id = id;
                 win.className = `window opening absolute bg-[var(--window-bg)] text-[var(--text-main)] rounded-lg border border-gray-700 flex flex-col pointer-events-auto`;
-                win.style.width = def.width || '600px'; win.style.height = def.height || '400px';
-                win.style.left = (50 + Math.random() * 50) + 'px'; win.style.top = (50 + Math.random() * 50) + 'px';
-                win.style.zIndex = ++zIndex;
+                
+                win.style.width = restoreState ? restoreState.width : (def.width || '600px'); 
+                win.style.height = restoreState ? restoreState.height : (def.height || '400px');
+                win.style.left = restoreState ? restoreState.x : ((50 + Math.random() * 50) + 'px'); 
+                win.style.top = restoreState ? restoreState.y : ((50 + Math.random() * 50) + 'px');
+                win.style.zIndex = restoreState ? restoreState.zIndex : ++zIndex;
                 
                 const windowIconHtml = def.img
                     ? `<img src="${def.img}" class="w-4 h-4 rounded-sm drop-shadow-sm">`
@@ -432,7 +455,16 @@
                 
                 win.innerHTML = `<div class="h-9 bg-[var(--window-header)] flex items-center justify-between px-3 cursor-default border-b border-gray-700 titlebar"><div class="flex items-center gap-2">${windowIconHtml}<span class="text-sm font-medium title-text">${def.title}</span></div><div class="flex gap-2"><button onclick="minimizeWindow('${id}')" class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400"></button><button onclick="maximizeWindow('${id}')" class="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400"></button><button onclick="closeWindow('${id}')" class="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400"></button></div></div><div class="flex-1 overflow-hidden relative content-area">${def.render(arg)}</div><div class="resizer right"></div><div class="resizer bottom"></div><div class="resizer corner"></div>`;
                 document.getElementById('window-area').appendChild(win);
-                windows[id] = { element: win, minimized: false, maximized: false, workspace: currentWorkspace, isOverlay: false };
+                
+                windows[id] = { 
+                    appId, 
+                    arg, 
+                    element: win, 
+                    minimized: restoreState ? restoreState.minimized : false, 
+                    maximized: restoreState ? restoreState.maximized : false, 
+                    workspace: restoreState ? restoreState.workspace : currentWorkspace, 
+                    isOverlay: false 
+                };
                 
                 const task = document.createElement('button');
                 task.id = `task-${id}`;
@@ -453,7 +485,22 @@
                 appManager.makeDraggable(win, win.querySelector('.titlebar'));
                 appManager.makeResizable(win);
                 win.onmousedown = () => appManager.focusWindow(id);
+
+                if (restoreState && restoreState.minimized) {
+                    win.classList.add('minimized');
+                    task.classList.remove('active');
+                    task.classList.add('opacity-50');
+                }
+                if (restoreState && restoreState.maximized) {
+                    win.classList.add('maximized');
+                }
+                if (restoreState && restoreState.workspace !== currentWorkspace) {
+                    win.classList.add('hidden-workspace');
+                    task.classList.add('hidden-workspace');
+                }
+
                 setTimeout(() => { win.classList.remove('opening'); win.classList.add('open'); }, 10);
+                saveSession();
             },
             closeWindow: (id) => { 
                 if(windows[id]?.unsub) windows[id].unsub();
@@ -463,6 +510,7 @@
                     document.getElementById(`task-${id}`)?.remove(); 
                     delete windows[id]; 
                 } 
+                saveSession();
             },
             minimizeWindow: (id) => { 
                 const w = document.getElementById(id); 
@@ -475,6 +523,7 @@
                         task.classList.add('opacity-50'); 
                     }
                 }
+                saveSession();
             },
             restoreWindow: (id) => { 
                 const w = document.getElementById(id); 
@@ -485,28 +534,32 @@
                     const task = document.getElementById(`task-${id}`);
                     if(task) task.classList.remove('opacity-50'); 
                 }
+                saveSession();
             },
             maximizeWindow: (id) => { 
                 const w = document.getElementById(id); 
                 const state = windows[id]; 
                 if(state.maximized) { w.classList.remove('maximized'); state.maximized = false; w.style.transform = ''; } 
                 else { w.classList.add('maximized'); state.maximized = true; } 
+                saveSession();
             },
             focusWindow: (id) => { 
                 const w = document.getElementById(id); 
                 if(windows[id] && windows[id].workspace !== currentWorkspace && !windows[id].isOverlay) window.toggleWorkspace();
                 if(w) { 
                     w.style.zIndex = ++zIndex; 
+                    windows[id].element.style.zIndex = zIndex;
                     document.querySelectorAll('.task-item').forEach(t=>t.classList.remove('active')); 
                     document.getElementById(`task-${id}`)?.classList.add('active'); 
                 } 
+                saveSession();
             },
             makeDraggable: (elm, handle) => { 
                 let pos1=0, pos2=0, pos3=0, pos4=0; const snapPreview = document.getElementById('snap-preview');
                 handle.onmousedown = (e) => { 
                     if(e.target.closest('button') || (windows[elm.id] && windows[elm.id].maximized)) return; 
                     e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; elm.classList.add('dragging');
-                    document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; elm.classList.remove('dragging'); snapPreview.classList.remove('opacity-100'); snapPreview.classList.add('opacity-0'); if (e.clientX < 20) { elm.style.top = '0'; elm.style.left = '0'; elm.style.width = '50vw'; elm.style.height = 'calc(100vh - 48px)'; } else if (e.clientX > window.innerWidth - 20) { elm.style.top = '0'; elm.style.left = '50vw'; elm.style.width = '50vw'; elm.style.height = 'calc(100vh - 48px)'; } else if (e.clientY < 20) { appManager.maximizeWindow(elm.id); } }; 
+                    document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; elm.classList.remove('dragging'); snapPreview.classList.remove('opacity-100'); snapPreview.classList.add('opacity-0'); if (e.clientX < 20) { elm.style.top = '0'; elm.style.left = '0'; elm.style.width = '50vw'; elm.style.height = 'calc(100vh - 48px)'; } else if (e.clientX > window.innerWidth - 20) { elm.style.top = '0'; elm.style.left = '50vw'; elm.style.width = '50vw'; elm.style.height = 'calc(100vh - 48px)'; } else if (e.clientY < 20) { appManager.maximizeWindow(elm.id); } saveSession(); }; 
                     document.onmousemove = (e) => { e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; elm.style.top = (elm.offsetTop - pos2) + "px"; elm.style.left = (elm.offsetLeft - pos1) + "px"; snapPreview.classList.remove('opacity-100'); snapPreview.classList.add('opacity-0'); if (e.clientX < 20) { snapPreview.style.top='0'; snapPreview.style.left='0'; snapPreview.style.width='50%'; snapPreview.style.height='calc(100% - 48px)'; snapPreview.classList.remove('opacity-0'); snapPreview.classList.add('opacity-100'); } else if (e.clientX > window.innerWidth - 20) { snapPreview.style.top='0'; snapPreview.style.left='50%'; snapPreview.style.width='50%'; snapPreview.style.height='calc(100% - 48px)'; snapPreview.classList.remove('opacity-0'); snapPreview.classList.add('opacity-100'); } else if (e.clientY < 20) { snapPreview.style.top='0'; snapPreview.style.left='0'; snapPreview.style.width='100%'; snapPreview.style.height='calc(100% - 48px)'; snapPreview.classList.remove('opacity-0'); snapPreview.classList.add('opacity-100'); } }; appManager.focusWindow(elm.id); }; 
             },
             makeResizable: (elm) => { 
@@ -514,7 +567,7 @@
                 resizers.forEach(r => { 
                     r.onmousedown = (e) => { 
                         e.preventDefault(); const startX = e.pageX, startY = e.pageY; const startW = parseFloat(getComputedStyle(elm).width), startH = parseFloat(getComputedStyle(elm).height); 
-                        document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; }; 
+                        document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; saveSession(); }; 
                         document.onmousemove = (e) => { if(r.classList.contains('right') || r.classList.contains('corner')) elm.style.width = (startW + e.pageX - startX) + 'px'; if(r.classList.contains('bottom') || r.classList.contains('corner')) elm.style.height = (startH + e.pageY - startY) + 'px'; }; 
                         appManager.focusWindow(elm.id); 
                     }; 
@@ -682,6 +735,13 @@
                 if (startMenuUser) startMenuUser.innerText = userData.username;
                 if (startMenuAvatar) startMenuAvatar.innerText = userData.username.charAt(0).toUpperCase();
                 applyTheme(userData.theme || 'dark');
+
+                // Restore previous session windows
+                const session = JSON.parse(localStorage.getItem('nexus_os_session')) || [];
+                session.forEach(winData => {
+                    if (winData.zIndex && parseInt(winData.zIndex) > zIndex) zIndex = parseInt(winData.zIndex);
+                    appManager.openApp(winData.appId, winData.arg, winData);
+                });
             }
         }
 
