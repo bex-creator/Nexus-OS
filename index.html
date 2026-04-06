@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus OS v4.0 - Workspaces Edition</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="https://placehold.co/192x192/000000/3b82f6.png?text=N">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+
+        :root {
+            --bg-color: #000;
+            --window-bg: rgba(30, 30, 30, 0.85); /* More translucent */
+            --window-header: rgba(40, 40, 40, 0.95);
+            --text-main: #e5e7eb;
+            --accent-color: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+        }
+
+        .terminal-font { font-family: 'JetBrains Mono', monospace; }
+        #boot-screen, #login-screen, #update-screen, #setup-screen { z-index: 9999; }
+        #publish-modal { z-index: 9000; }
+        #calendar-widget { z-index: 5000; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+
+        /* Window animations */
+        .window {
+            transition: opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.3);
+            backdrop-filter: blur(12px);
+            min-width: 300px; min-height: 200px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .window.dragging { transition: none; }
+        .window.opening { opacity: 0; transform: scale(0.9); }
+        .window.open { opacity: 1; transform: scale(1); }
+        .window.minimized { opacity: 0; transform: scale(0.7) translateY(100%); pointer-events: none; }
+        .window.maximized { top: 0 !important; left: 0 !important; width: 100vw !important; height: calc(100vh - 48px) !important; border-radius: 0; transform: none !important; }
+        /* Workspace hiding */
+        .window.hidden-workspace { display: none !important; }
+
+        /* Resizers */
+        .resizer { position: absolute; user-select: none; touch-action: none; }
+        .resizer.right { cursor: ew-resize; height: 100%; right: 0; top: 0; width: 6px; z-index: 20; }
+        .resizer.bottom { cursor: ns-resize; width: 100%; bottom: 0; left: 0; height: 6px; z-index: 20; }
+        .resizer.corner { cursor: nwse-resize; right: 0; bottom: 0; width: 12px; height: 12px; z-index: 21; }
+
+        .wallpaper {
+            background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop'); /* New v4 Wallpaper */
+            background-size: cover; background-position: center; transition: background-image 0.5s ease;
+        }
+        .task-item.active { background-color: rgba(255, 255, 255, 0.15); border-bottom: 2px solid var(--accent-color); }
+        .task-item.hidden-workspace { opacity: 0.3; } /* Dim icons for windows on other desks */
+        
+        #context-menu, #file-context-menu { transition: opacity 0.1s ease; }
+        
+        /* Notifications */
+        #notification-area { pointer-events: none; }
+        .notification { pointer-events: auto; animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body class="h-screen w-screen select-none wallpaper relative" oncontextmenu="return false;">
+
+    <!-- Hidden Inputs -->
+    <input type="file" id="app-uploader" accept=".html" class="hidden">
+    <input type="file" id="wp-uploader" accept="image/*" class="hidden">
+
+    <!-- Snap Preview Overlay -->
+    <div id="snap-preview" class="absolute bg-white/20 border-2 border-white/50 rounded-lg pointer-events-none opacity-0 transition-all z-[8000]"></div>
+
+    <!-- Calendar Widget -->
+    <div id="calendar-widget" class="absolute bottom-14 right-4 w-72 bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-lg shadow-2xl p-4 hidden opacity-0 transition-opacity duration-200 transform origin-bottom-right">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="cal-month" class="font-bold text-lg text-white">Month</h2>
+            <div class="text-sm text-gray-400" id="cal-year">Year</div>
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2">
+            <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+        </div>
+        <div id="cal-days" class="grid grid-cols-7 gap-1 text-center text-sm text-gray-300"></div>
+    </div>
+
+    <!-- Publish Modal -->
+    <div id="publish-modal" class="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-gray-800 border border-gray-700 w-96 rounded-lg shadow-2xl p-6 transform scale-95 transition-transform duration-200" id="publish-modal-content">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2"><i data-lucide="cloud-upload" class="text-blue-400"></i> Publish App</h2>
+            <div class="space-y-4">
+                <div><label class="text-xs text-gray-400 uppercase font-bold">App Name</label><input type="text" id="pub-name" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mt-1"></div>
+                <div><label class="text-xs text-gray-400 uppercase font-bold">Description</label><textarea id="pub-desc" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mt-1 h-20 resize-none"></textarea></div>
+                <div><label class="text-xs text-gray-400 uppercase font-bold">Author</label><input type="text" id="pub-author" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mt-1" value="User"></div>
+            </div>
+            <div class="flex gap-2 mt-6 justify-end">
+                <button onclick="closePublishModal()" class="px-4 py-2 text-gray-300 hover:bg-white/10 rounded text-sm">Cancel</button>
+                <button id="pub-confirm-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-bold">Publish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Boot Screen -->
+    <div id="boot-screen" class="absolute inset-0 bg-black flex flex-col justify-start p-10 terminal-font text-gray-300 text-sm overflow-hidden">
+        <div id="boot-text"></div>
+    </div>
+
+    <!-- Update Screen -->
+    <div id="update-screen" class="absolute inset-0 bg-black flex flex-col justify-center items-center terminal-font text-white hidden">
+        <i data-lucide="refresh-cw" class="w-16 h-16 animate-spin text-blue-500 mb-6"></i>
+        <h2 class="text-2xl font-bold mb-2">Updating Nexus OS to v4.0</h2>
+        <p id="update-text" class="text-gray-400 text-sm">Initializing...</p>
+        <div class="w-64 h-1 bg-gray-800 rounded mt-4 overflow-hidden"><div id="update-bar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div></div>
+    </div>
+
+    <!-- Setup Screen -->
+    <div id="setup-screen" class="absolute inset-0 bg-black/80 backdrop-blur-xl flex flex-col justify-center items-center text-white hidden opacity-0 transition-opacity duration-500 z-[9999]">
+        <div class="bg-gray-900/90 border border-gray-700 p-8 rounded-2xl shadow-2xl w-96 flex flex-col items-center">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-blue-500/50">
+                <i data-lucide="sparkles" class="w-8 h-8 text-white"></i>
+            </div>
+            <h1 class="text-2xl font-bold mb-2">Welcome to Nexus OS</h1>
+            <p class="text-gray-400 text-sm mb-6 text-center">Let's set up your local workspace.</p>
+
+            <div class="w-full space-y-4">
+                <div>
+                    <label class="text-xs text-gray-400 uppercase font-bold ml-1">Username</label>
+                    <input type="text" id="setup-user" class="w-full bg-black/50 border border-gray-600 rounded-lg px-4 py-2 mt-1 outline-none focus:border-blue-500 text-white" placeholder="Enter username">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 uppercase font-bold ml-1">Password</label>
+                    <input type="password" id="setup-pass" class="w-full bg-black/50 border border-gray-600 rounded-lg px-4 py-2 mt-1 outline-none focus:border-blue-500 text-white" placeholder="Optional password">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 uppercase font-bold ml-1">Theme</label>
+                    <div class="flex gap-2 mt-1">
+                        <button id="theme-dark-btn" class="flex-1 bg-blue-600 text-white py-2 rounded-lg border border-blue-500 transition-colors font-semibold" onclick="selectSetupTheme('dark')">Dark</button>
+                        <button id="theme-light-btn" class="flex-1 bg-gray-800 text-gray-300 py-2 rounded-lg border border-gray-600 transition-colors font-semibold" onclick="selectSetupTheme('light')">Light</button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="finishSetup()" class="w-full mt-8 bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex justify-center items-center gap-2">
+                Get Started <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+            <p id="setup-msg" class="text-red-400 text-sm mt-4 h-5"></p>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="absolute inset-0 bg-black/60 backdrop-blur-xl flex flex-col justify-center items-center text-white hidden opacity-0 transition-opacity duration-500">
+        <div id="login-avatar" class="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-4xl font-bold mb-6 shadow-2xl">U</div>
+        <h1 id="login-user-display" class="text-2xl font-bold mb-4">User</h1>
+        <div class="flex gap-2">
+            <input type="password" id="login-pass" class="bg-white/10 border border-white/20 rounded px-4 py-2 outline-none focus:border-blue-500 text-center w-48" placeholder="Password">
+            <button onclick="attemptLogin()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded transition-colors"><i data-lucide="arrow-right" class="w-5 h-5"></i></button>
+        </div>
+        <p id="login-msg" class="text-red-400 text-sm mt-4 h-5"></p>
+        <div class="absolute bottom-10 text-gray-400 text-xs" id="version-display">Nexus OS v4.0</div>
+    </div>
+
+    <!-- Desktop Area -->
+    <div class="absolute top-4 left-4 bottom-14 right-4" id="desktop-area">
+        <div class="w-full h-full relative flex flex-col flex-wrap content-start gap-2 p-2" id="desktop-icons"></div>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notification-area" class="absolute top-12 right-4 flex flex-col gap-3 z-[9990] w-80"></div>
+
+    <!-- Main Context Menu -->
+    <div id="context-menu" class="absolute bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-2xl w-48 py-1 hidden z-[9999] text-sm">
+        <button onclick="document.getElementById('app-uploader').click(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="download" class="w-4 h-4 text-green-400"></i> Install App (.html)</button>
+        <button onclick="openApp('paint'); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="brush" class="w-4 h-4 text-purple-400"></i> Open Paint</button>
+        <button onclick="openApp('settings'); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="image" class="w-4 h-4 text-blue-400"></i> Change Wallpaper</button>
+        <div class="h-px bg-gray-700 my-1"></div>
+        <button onclick="toggleFullScreen(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="maximize" class="w-4 h-4"></i> Toggle Fullscreen</button>
+        <button onclick="lockSystem(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="lock" class="w-4 h-4 text-yellow-400"></i> Lock System</button>
+        <button onclick="location.reload()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="rotate-cw" class="w-4 h-4"></i> Restart System</button>
+    </div>
+
+    <!-- Window Area -->
+    <div id="window-area" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+    <!-- Taskbar -->
+    <div class="absolute bottom-0 w-full h-12 bg-gray-900/90 backdrop-blur-md border-t border-gray-700 flex items-center justify-between px-4 z-50">
+        <div class="flex items-center gap-2 flex-1">
+            <button id="menu-btn" class="p-2 rounded hover:bg-white/10 transition-colors active:bg-white/20 mr-1"><i data-lucide="layout-grid" class="w-5 h-5 text-blue-400"></i></button>
+            <button onclick="toggleWorkspace()" id="ws-btn" class="p-2 rounded hover:bg-white/10 transition-colors mr-2 flex gap-1 items-center text-gray-400" title="Switch Workspace">
+                <span class="text-xs font-bold" id="ws-indicator">WS 1</span>
+                <i data-lucide="layers" class="w-4 h-4"></i>
+            </button>
+            <div class="h-6 w-px bg-gray-700 mx-1"></div>
+            <div id="taskbar-apps" class="flex items-center gap-1"></div>
+        </div>
+        <div class="flex items-center gap-4 text-xs font-medium text-gray-300">
+            <div class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/10 transition-colors cursor-default">
+                <i data-lucide="wifi" class="w-4 h-4"></i>
+                <div id="battery-container" class="flex items-center gap-1">
+                    <i data-lucide="battery-medium" class="w-4 h-4"></i>
+                    <span id="bat-percent" class="text-[10px]">--%</span>
+                </div>
+            </div>
+            <button id="clock-btn" class="px-2 py-1 hover:bg-white/10 rounded cursor-pointer transition-colors" onclick="toggleCalendar()">12:00 PM</button>
+        </div>
+    </div>
+
+    <!-- Start Menu -->
+    <div id="start-menu" class="absolute bottom-14 left-2 w-80 bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-lg shadow-2xl transform transition-all duration-200 origin-bottom-left scale-90 opacity-0 pointer-events-none z-50 flex flex-col">
+        <div class="p-4 border-b border-gray-700"><input type="text" id="menu-search" placeholder="Search apps..." class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 text-white placeholder-gray-500"></div>
+        <div class="p-2 grid grid-cols-1 gap-1 overflow-y-auto max-h-64" id="menu-list"></div>
+        <div class="p-3 bg-gray-950/50 border-t border-gray-700 flex justify-between items-center rounded-b-lg mt-auto">
+            <div class="flex items-center gap-2"><div id="menu-avatar" class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-xs">U</div><div class="text-xs"><div class="font-bold" id="menu-user">User</div><div class="text-gray-500">Local Account</div></div></div>
+            <div class="flex gap-1">
+                <button onclick="lockSystem()" class="p-2 hover:bg-yellow-500/20 hover:text-yellow-400 text-gray-400 rounded transition-colors" title="Lock System"><i data-lucide="lock" class="w-4 h-4"></i></button>
+                <button onclick="location.reload()" class="p-2 hover:bg-red-500/20 hover:text-red-400 text-gray-400 rounded transition-colors" title="Restart"><i data-lucide="power" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Register Service Worker for Chrome PWA Installation
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+            });
+        }
+
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        let app, auth, db;
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gemini-os-default';
+
+        const TARGET_VERSION = "4.0"; 
+        let installedVersion = localStorage.getItem('gemini_os_version') || "3.0";
+        let userWallpaper = localStorage.getItem('gemini_os_wallpaper') || null;
+        let userData = JSON.parse(localStorage.getItem('gemini_os_user_data'));
+        let currentWorkspace = 1;
+
+        if (userWallpaper) document.body.style.backgroundImage = `url('${userWallpaper}')`;
+
+        if (firebaseConfig.apiKey) {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            const initAuth = async () => { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token); else await signInAnonymously(auth); };
+            initAuth();
+            onAuthStateChanged(auth, (user) => { currentUser = user; });
+        }
+
+        // --- Global Helpers ---
+        window.openApp = (appId, arg) => appManager.openApp(appId, arg);
+        window.closeWindow = (id) => appManager.closeWindow(id);
+        window.minimizeWindow = (id) => appManager.minimizeWindow(id);
+        window.maximizeWindow = (id) => appManager.maximizeWindow(id);
+        window.toggleFullScreen = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(console.log); else if (document.exitFullscreen) document.exitFullscreen(); };
+        window.loadUrlInBrowser = (winId, url) => { if(appDefinitions.browser.instanceFuncs[winId]) appDefinitions.browser.instanceFuncs[winId](url); };
+        window.hideContextMenu = () => document.getElementById('context-menu').classList.add('hidden');
+        window.applyTheme = (t) => systemState.applyTheme(t);
+        window.setWallpaper = (url) => { document.body.style.backgroundImage = `url('${url}')`; localStorage.setItem('gemini_os_wallpaper', url); window.notify("Settings", "Wallpaper updated."); };
+        window.notify = (title, msg, duration = 4000) => {
+            const area = document.getElementById('notification-area');
+            const el = document.createElement('div');
+            el.className = "notification bg-gray-800/90 backdrop-blur border border-gray-700 text-white p-3 rounded-lg shadow-xl flex items-start gap-3 relative overflow-hidden mb-2";
+            el.innerHTML = `<div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div><div class="flex-1"><h4 class="font-bold text-sm">${title}</h4><div class="text-xs text-gray-300 mt-1">${msg}</div></div>`;
+            area.appendChild(el);
+            if(duration > 0) setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, duration);
+        };
+
+        window.toggleWorkspace = () => {
+            currentWorkspace = currentWorkspace === 1 ? 2 : 1;
+            const btn = document.getElementById('ws-indicator');
+            if(btn) btn.innerText = `WS ${currentWorkspace}`;
+            Object.values(windows).forEach(win => {
+                const taskItem = document.getElementById(`task-${win.id}`);
+                if (win.workspace === currentWorkspace) {
+                    win.element.classList.remove('hidden-workspace');
+                    if(taskItem) taskItem.classList.remove('hidden-workspace');
+                } else {
+                    win.element.classList.add('hidden-workspace');
+                    if(taskItem) taskItem.classList.add('hidden-workspace');
+                }
+            });
+            window.notify("Workspace", `Switched to Workspace ${currentWorkspace}`, 1000);
+        };
+
+        window.toggleCalendar = () => {
+            const cal = document.getElementById('calendar-widget');
+            if (cal.classList.contains('hidden')) { cal.classList.remove('hidden'); setTimeout(() => cal.classList.remove('opacity-0'), 10); renderCalendar(); } 
+            else { cal.classList.add('opacity-0'); setTimeout(() => cal.classList.add('hidden'), 200); }
+        };
+
+        function renderCalendar() {
+            const date = new Date(); const year = date.getFullYear(); const month = date.getMonth();
+            const calMonth = document.getElementById('cal-month'); const calYear = document.getElementById('cal-year');
+            if(calMonth) calMonth.innerText = date.toLocaleString('default', { month: 'long' }); if(calYear) calYear.innerText = year;
+            const daysContainer = document.getElementById('cal-days');
+            if(daysContainer) {
+                daysContainer.innerHTML = '';
+                const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for(let i=0; i<firstDay; i++) daysContainer.innerHTML += `<div></div>`;
+                for(let i=1; i<=daysInMonth; i++) {
+                    const isToday = i === date.getDate();
+                    daysContainer.innerHTML += `<div class="${isToday ? 'bg-blue-600 text-white rounded-full' : 'hover:bg-white/10 rounded cursor-default'} py-1">${i}</div>`;
+                }
+            }
+        }
+
+        const svgStore = "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22gStore%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2310b981%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23047857%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2224%22%20fill%3D%22url%28%23gStore%29%22%2F%3E%3Cpath%20d%3D%22M%2030%2040%20L%2070%2040%20L%2075%2075%20L%2025%2075%20Z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.9%22%2F%3E%3Cpath%20d%3D%22M%2035%2040%20C%2035%2020%2C%2065%2020%2C%2065%2040%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2255%22%20r%3D%226%22%20fill%3D%22%23047857%22%2F%3E%3C%2Fsvg%3E";
+        const svgWeb = "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22gWeb%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2322d3ee%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%232563eb%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2224%22%20fill%3D%22url%28%23gWeb%29%22%2F%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2228%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%226%22%2F%3E%3Cellipse%20cx%3D%2250%22%20cy%3D%2250%22%20rx%3D%2212%22%20ry%3D%2228%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%224%22%2F%3E%3Cline%20x1%3D%2222%22%20y1%3D%2250%22%20x2%3D%2278%22%20y2%3D%2250%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%224%22%2F%3E%3C%2Fsvg%3E";
+
+        const defaultFileSystem = { root: { type: 'dir', children: { home: { type: 'dir', children: { user: { type: 'dir', children: {
+            Desktop: { type: 'dir', children: {
+                "Welcome": { type: 'link', action: "openApp('welcome')", icon: 'info', color: 'text-purple-400' },
+                "Nexus Store": { type: 'link', action: "openApp('community')", icon: 'shopping-bag', color: 'text-green-400', img: svgStore },
+                "My Apps": { type: 'link', action: "openApp('appManager')", icon: 'package', color: 'text-yellow-400' },
+                "Paint": { type: 'link', action: "openApp('paint')", icon: 'brush', color: 'text-pink-400' },
+                "Calculator": { type: 'link', action: "openApp('calculator')", icon: 'calculator', color: 'text-gray-200' },
+                "Nexus": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgWeb }
+            }},
+            apps: { type: 'dir', children: {} },
+            Documents: { type: 'dir', children: { "hello_world.html": { type: 'file', content: "<h1 style='color:blue'>Hello World</h1><p>Run me!</p>" } }},
+        }}}}}}};
+
+        // Load Persistent File System
+        let fileSystem = JSON.parse(localStorage.getItem('nexus_os_fs')) || defaultFileSystem;
+        const saveFS = () => localStorage.setItem('nexus_os_fs', JSON.stringify(fileSystem));
+
+        const fs = {
+            getPath: (pathStr) => { const parts = pathStr.split('/').filter(p => p); let c = fileSystem.root; for (const part of parts) { if (c.children && c.children[part]) c = c.children[part]; else return null; } return c; },
+            createPath: (pathStr, type, content = "") => { const parts = pathStr.split('/'); const name = parts.pop(); const p = fs.getPath(parts.join('/')); if (p && p.type === 'dir') { p.children[name] = { type, content: type==='dir'?{}:content }; saveFS(); if(parts.join('/')==='/home/user/Desktop') renderDesktop(); return true; } return false; },
+            deletePath: (pathStr) => { const parts = pathStr.split('/'); const name = parts.pop(); const p = fs.getPath(parts.join('/')); if (p && p.children[name]) { delete p.children[name]; saveFS(); if(parts.join('/')==='/home/user/Desktop') renderDesktop(); return true; } return false; },
+            updateNode: () => saveFS()
+        };
+
+        const systemState = {
+            applyTheme: (theme) => { const root = document.documentElement; const config = theme === 'light' ? { bg: '#f3f4f6', win: '#ffffff', head: '#e5e7eb', text: '#1f2937' } : { bg: '#000', win: '#2d2d2d', head: '#1f1f1f', text: '#e5e7eb' }; root.style.setProperty('--bg-color', config.bg); root.style.setProperty('--window-bg', config.win); root.style.setProperty('--window-header', config.head); root.style.setProperty('--text-main', config.text); }
+        };
+
+        const appDefinitions = {
+            browser: { title: 'Nexus', icon: 'globe', color: 'text-cyan-400', img: svgWeb, singleInstance: true, instanceFuncs: {}, render: () => `<div class="h-full bg-gray-900 flex flex-col text-sm"><div class="bg-gray-800 p-2 flex gap-2 border-b border-gray-700 items-center shadow-md z-10"><div class="flex items-center gap-2 text-gray-400"><button class="hover:text-cyan-400 transition-colors p-1 browser-back"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-forward"><i data-lucide="arrow-right" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-reload"><i data-lucide="rotate-cw" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-home"><i data-lucide="home" class="w-4 h-4"></i></button><button class="hover:text-cyan-400 transition-colors p-1 browser-proxy text-green-400" title="Toggle Proxy Shield"><i data-lucide="shield" class="w-4 h-4"></i></button></div><input type="text" class="browser-url flex-1 bg-gray-900 border border-gray-700 rounded-full px-4 py-1.5 text-gray-200 text-xs focus:outline-none focus:border-cyan-500 transition-colors shadow-inner" placeholder="Search the Nexus..."></div><div class="flex-1 bg-white relative overflow-hidden"><iframe class="browser-frame w-full h-full border-none hidden bg-white" sandbox="allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts"></iframe><div class="browser-mock absolute inset-0 bg-gray-900 overflow-y-auto"></div></div></div>`, init: (id, root, startUrl) => { const frame = root.querySelector('.browser-frame'); const mock = root.querySelector('.browser-mock'); const input = root.querySelector('.browser-url'); let useProxy = true; const proxyBtn = root.querySelector('.browser-proxy'); proxyBtn.onclick = () => { useProxy = !useProxy; if(useProxy) { proxyBtn.classList.remove('text-gray-500'); proxyBtn.classList.add('text-green-400'); } else { proxyBtn.classList.remove('text-green-400'); proxyBtn.classList.add('text-gray-500'); } if(input.value && input.value !== 'home') load(input.value); }; const load = (url) => { let target = url.trim(); if(target === 'home' || !target) { mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900 via-gray-900 to-black relative overflow-hidden"><div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:30px_30px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_20%,transparent_100%)] pointer-events-none"></div><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none"><span class="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 drop-shadow-[0_0_15px_rgba(34,211,238,0.3)]">NEXUS</span></div><div class="w-full max-w-md relative"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"></i><input type="text" class="home-search w-full bg-gray-800/80 backdrop-blur border border-gray-600 rounded-full py-3 pl-12 pr-4 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 shadow-xl transition-all" placeholder="Search the web..."></div></div></div>`; setTimeout(() => { const hs = mock.querySelector('.home-search'); if(hs){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value); }}; } }, 10); mock.classList.remove('hidden'); frame.classList.add('hidden'); lucide.createIcons({root: mock}); return; } if(target.startsWith('/')) { const file = fs.getPath(target); frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; mock.classList.add('hidden'); frame.classList.remove('hidden'); input.value = "file://" + target; return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://search.yahoo.com/search?p=' + encodeURIComponent(target); } } mock.classList.add('hidden'); frame.classList.remove('hidden'); if(useProxy) { const PROXY_URL = "https://nexus-proxy.fdfdfdsd0.workers.dev/?url="; frame.src = PROXY_URL + encodeURIComponent(target); } else { frame.src = target; } input.value = target; }; appDefinitions.browser.instanceFuncs[id] = load; root.querySelector('.browser-home').onclick = () => load('home'); input.onkeydown = (e) => { if(e.key==='Enter') load(input.value); }; load(startUrl || 'home'); } },
+            paint: { title: 'Paint', icon: 'brush', color: 'text-pink-400', render: () => `<div class="h-full flex flex-col bg-white"><div class="p-2 border-b flex gap-2 items-center bg-gray-100"><input type="color" class="paint-color" value="#000000"><input type="range" class="paint-size" min="1" max="20" value="5" class="w-24"><button class="paint-clear px-2 py-1 bg-gray-200 rounded text-xs">Clear</button></div><div class="flex-1 relative cursor-crosshair overflow-hidden"><canvas class="paint-canvas absolute inset-0"></canvas></div></div>`, init: (id, root) => { const canvas = root.querySelector('.paint-canvas'); const ctx = canvas.getContext('2d'); const color = root.querySelector('.paint-color'); const size = root.querySelector('.paint-size'); let painting = false; const resize = () => { canvas.width = canvas.parentElement.offsetWidth; canvas.height = canvas.parentElement.offsetHeight; }; setTimeout(resize, 10); const draw = (e) => { if (!painting) return; const rect = canvas.getBoundingClientRect(); ctx.lineWidth = size.value; ctx.lineCap = 'round'; ctx.strokeStyle = color.value; ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top); ctx.stroke(); ctx.beginPath(); ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top); }; canvas.addEventListener('mousedown', (e) => { painting = true; draw(e); }); canvas.addEventListener('mouseup', () => { painting = false; ctx.beginPath(); }); canvas.addEventListener('mousemove', draw); root.querySelector('.paint-clear').onclick = () => ctx.clearRect(0,0,canvas.width,canvas.height); } },
+            calculator: { title: 'Calculator', icon: 'calculator', color: 'text-gray-200', width: '300px', height: '400px', render: () => `<div class="h-full bg-gray-900 flex flex-col p-4"><input type="text" class="calc-display w-full bg-gray-800 text-right text-3xl text-white p-4 rounded mb-4 outline-none" readonly value="0"><div class="grid grid-cols-4 gap-2 flex-1 button-grid"></div></div>`, init: (id, root) => { const display = root.querySelector('.calc-display'); const buttons = ['C','/','*','-','7','8','9','+','4','5','6','=','1','2','3','0']; const grid = root.querySelector('.button-grid'); let current = ''; buttons.forEach(btn => { const b = document.createElement('button'); b.className = `rounded text-xl font-bold transition-colors ${btn === '=' ? 'row-span-2 bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'} ${btn === '0' ? 'col-span-2' : ''}`; b.innerText = btn; b.onclick = () => { if(btn === 'C') { current = ''; display.value = '0'; } else if(btn === '=') { try { display.value = eval(current); current = display.value; } catch { display.value = 'Error'; current = ''; } } else { current += btn; display.value = current; } }; grid.appendChild(b); }); } },
+            editor: { title: 'Code Editor', icon: 'code', color: 'text-yellow-400', render: () => `<div class="h-full bg-[#1e1e1e] flex flex-col"><div class="bg-[#2d2d2d] px-2 py-1 text-xs text-gray-300 flex items-center justify-between border-b border-gray-700"><div class="flex gap-2 items-center"><button class="editor-save hover:bg-white/10 px-2 py-1 rounded text-blue-400 font-bold">Save</button><button class="editor-run hover:bg-white/10 px-2 py-1 rounded text-green-400 font-bold flex gap-1 items-center"><i data-lucide="play" class="w-3 h-3"></i> Run</button><button class="editor-pub hover:bg-white/10 px-2 py-1 rounded text-purple-400 font-bold flex gap-1 items-center"><i data-lucide="cloud-upload" class="w-3 h-3"></i> Publish</button><span class="text-gray-500">|</span><span class="editor-filename text-gray-400">Untitled</span></div><div class="editor-msg text-green-400 opacity-0 transition-opacity">Saved!</div></div><textarea class="editor-content flex-1 bg-[#1e1e1e] text-gray-200 p-4 terminal-font resize-none focus:outline-none text-sm leading-relaxed" spellcheck="false" placeholder="<html>...</html>"></textarea></div>`, init: (id, root, filePath) => { const ta = root.querySelector('.editor-content'); const label = root.querySelector('.editor-filename'); const msg = (txt) => { const el = root.querySelector('.editor-msg'); el.innerText = txt; el.classList.remove('opacity-0'); setTimeout(() => el.classList.add('opacity-0'), 2000); }; if(filePath) { label.innerText = filePath; const f = fs.getPath(filePath); if(f) ta.value = f.content; } root.querySelector('.editor-save').onclick = () => { let path = filePath; if (!path) path = prompt("Save as (e.g. /home/user/apps/myapp.html):"); if (!path) return; if (!path.includes('.')) path += '.html'; if(path.includes('/apps/') && !fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir'); if(fs.createPath(path, 'file', ta.value)) { filePath = path; label.innerText = path; msg("Saved!"); } }; root.querySelector('.editor-run').onclick = () => window.openApp('runner', { content: ta.value, name: filePath || 'Preview' }); root.querySelector('.editor-pub').onclick = () => window.openPublishModal(async (name, desc, author) => { if(!db) { alert("Offline."); return; } try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'apps'), { name, description: desc, content: ta.value, author, timestamp: serverTimestamp() }); alert(`"${name}" Published!`); } catch(e) { alert(e.message); } }); } },
+            community: { 
+                title: 'Nexus Store', icon: 'shopping-bag', color: 'text-green-400', img: svgStore,
+                externalUrl: 'https://chatspace2.w3spaces.com/index.html'
+            },
+            appManager: { title: 'My Apps', icon: 'package', color: 'text-yellow-400', render: () => `<div class="h-full bg-gray-900 text-white flex flex-col"><div class="p-6 border-b border-gray-800 bg-gray-900 flex justify-between items-center"><div><h1 class="text-2xl font-bold flex items-center gap-3"><i data-lucide="package" class="text-yellow-400"></i> My Apps</h1><p class="text-gray-400 text-sm mt-1">Manage local applications.</p></div><button onclick="document.getElementById('app-uploader').click()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm font-bold flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Import File</button></div><div class="app-list flex-1 overflow-y-auto p-6 grid grid-cols-1 gap-3"><div class="text-gray-500 italic">No apps installed.</div></div></div>`, init: (id, root) => { const list = root.querySelector('.app-list'); const appsDir = fs.getPath('/home/user/apps'); if(appsDir && appsDir.children) { list.innerHTML = ''; Object.entries(appsDir.children).forEach(([name, data]) => { const row = document.createElement('div'); row.className = "bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between items-center hover:border-yellow-500 transition-colors"; row.innerHTML = `<div class="flex items-center gap-3"><i data-lucide="box" class="text-orange-400"></i><span class="font-medium">${name}</span></div><div class="flex gap-2"><button class="px-3 py-1.5 bg-green-700 hover:bg-green-600 rounded text-xs share-btn" title="Upload to Community Store">Share</button><button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs run-btn">Run</button><button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs edit-btn">Edit</button><button class="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-200 rounded text-xs delete-btn">Delete</button></div>`; const path = `/home/user/apps/${name}`; row.querySelector('.run-btn').onclick = () => window.openApp('runner', path); row.querySelector('.edit-btn').onclick = () => window.openApp('editor', path); row.querySelector('.share-btn').onclick = async () => { if(!currentUser) { alert("Connecting..."); return; } const n = prompt("Name for Store:", name.replace('.html','')); if(!n) return; try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'apps'), { name: n, content: data.content, author: 'User', timestamp: serverTimestamp() }); alert("Shared!"); } catch(e) { alert(e.message); } }; row.querySelector('.delete-btn').onclick = () => { if(confirm("Delete?")) { fs.deletePath(path); row.remove(); } }; list.appendChild(row); }); lucide.createIcons({root: list}); } } },
+            
+            // UPDATED RUNNER: Use 'src' for URLs to support games like Idle Miner, 'srcdoc' for code
+            runner: { 
+                title: 'App Runner', icon: 'play', color: 'text-orange-400', hidden: true, 
+                render: () => `<div class="h-full bg-white flex flex-col"><div class="bg-gray-100 p-1 flex justify-between items-center border-b px-2"><span class="runner-title text-xs text-gray-500">App</span></div><iframe class="runner-frame flex-1 w-full h-full border-none bg-white" sandbox="allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe></div>`, 
+                init: (id, root, arg) => { 
+                    const iframe = root.querySelector('.runner-frame'); 
+                    const title = root.querySelector('.runner-title'); 
+                    title.innerText = "Loading..."; 
+                    
+                    // Reset
+                    iframe.src = "about:blank";
+                    iframe.removeAttribute("srcdoc");
+
+                    if (arg && typeof arg === 'object') { 
+                        title.innerText = arg.name || "Preview"; 
+                        if (arg.url) { 
+                            iframe.src = arg.url; 
+                        } else if (arg.content) { 
+                            iframe.srcdoc = arg.content; 
+                        } 
+                    } else if (typeof arg === 'string') { 
+                        title.innerText = arg; 
+                        const f = fs.getPath(arg); 
+                        if(f && f.type === 'file') { 
+                            iframe.srcdoc = f.content; 
+                        } else { 
+                            iframe.srcdoc = "File not found."; 
+                        } 
+                    } else { 
+                        iframe.srcdoc = "<div style='padding:20px;font-family:sans-serif;color:#555;'>No App Selected</div>"; 
+                        title.innerText = "No App"; 
+                    } 
+                } 
+            },
+
+            terminal: { title: 'Terminal', icon: 'terminal-square', color: 'text-gray-300', render: () => `<div class="h-full bg-[#1e1e1e] text-gray-300 p-2 terminal-font text-sm overflow-y-auto" onclick="this.querySelector('input').focus()"><div class="term-out"></div><div class="flex"><span class="text-green-400">user@nexus</span>:<span class="text-blue-400">~</span>$&nbsp;<input class="bg-transparent border-none outline-none flex-1 text-gray-200" autofocus></div></div>`, init: (id, root) => { const out = root.querySelector('.term-out'); const inp = root.querySelector('input'); const print = (t) => { const d=document.createElement('div'); d.innerHTML=t; out.appendChild(d); }; print("Nexus OS v4.0"); inp.onkeydown = (e) => { if(e.key === 'Enter') { const val = inp.value.trim(); print(`<span class="text-green-400">user</span>$ ${val}`); if(val==='clear')out.innerHTML=''; else if(val==='ls')print("Desktop Documents"); else if(val==='reboot')location.reload(); else if(val)print("Command not found."); inp.value=''; root.firstElementChild.scrollTop=root.firstElementChild.scrollHeight; } }; } },
+            settings: { title: 'Settings', icon: 'settings', color: 'text-gray-400', render: () => `<div class="p-6 bg-[#2d2d2d] h-full text-gray-200"><h2 class="text-xl font-bold mb-4">Settings</h2><div class="mb-4"><label class="block mb-2">Theme</label><div class="flex gap-2"><button onclick="applyTheme('dark')" class="px-3 py-1 bg-gray-700 rounded">Dark</button><button onclick="applyTheme('light')" class="px-3 py-1 bg-white text-black rounded">Light</button></div></div><div class="mt-4"><button class="text-blue-400 hover:underline block" onclick="window.startSystemUpdate()">Check Updates</button><button class="text-red-400 hover:underline block mt-4 text-sm" onclick="if(confirm('Wipe all OS data and reset to factory defaults?')) { localStorage.clear(); location.reload(); }">Reset All OS Data</button></div></div>` },
+            welcome: { title: 'Welcome', icon: 'info', color: 'text-purple-400', render: () => `<div class="h-full bg-gradient-to-br from-gray-900 to-blue-900 text-white p-8 flex flex-col items-center justify-center text-center"><h1 class="text-3xl font-bold mb-2">Nexus OS 4.0</h1><p class="mb-4">Now with Workspaces & Realtime Community!</p><button onclick="closeWindow(this.closest('.window').id)" class="px-6 py-2 bg-blue-500 rounded">Start</button></div>` }
+        };
+
+        let zIndex = 100;
+        const windows = {};
+        const appManager = {
+            openApp: (appId, arg) => {
+                const def = appDefinitions[appId];
+                if (!def) return;
+
+                if (def.externalUrl) {
+                    window.open(def.externalUrl, '_blank');
+                    return;
+                }
+
+                const id = 'win-' + Math.random().toString(36).substr(2, 9);
+                const win = document.createElement('div');
+                win.id = id;
+                win.className = `window opening absolute bg-[var(--window-bg)] text-[var(--text-main)] rounded-lg border border-gray-700 flex flex-col pointer-events-auto`;
+                win.style.width = def.width || '600px'; win.style.height = def.height || '400px';
+                win.style.left = (50 + Math.random() * 50) + 'px'; win.style.top = (50 + Math.random() * 50) + 'px';
+                win.style.zIndex = ++zIndex;
+                
+                const windowIconHtml = def.img
+                    ? `<img src="${def.img}" class="w-4 h-4 rounded-sm drop-shadow-sm">`
+                    : `<i data-lucide="${def.icon}" class="w-4 h-4 text-gray-400"></i>`;
+                
+                win.innerHTML = `<div class="h-9 bg-[var(--window-header)] flex items-center justify-between px-3 cursor-default border-b border-gray-700 titlebar"><div class="flex items-center gap-2">${windowIconHtml}<span class="text-sm font-medium title-text">${def.title}</span></div><div class="flex gap-2"><button onclick="minimizeWindow('${id}')" class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400"></button><button onclick="maximizeWindow('${id}')" class="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400"></button><button onclick="closeWindow('${id}')" class="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400"></button></div></div><div class="flex-1 overflow-hidden relative content-area">${def.render(arg)}</div><div class="resizer right"></div><div class="resizer bottom"></div><div class="resizer corner"></div>`;
+                document.getElementById('window-area').appendChild(win);
+                windows[id] = { element: win, minimized: false, maximized: false, workspace: currentWorkspace, isOverlay: false };
+                
+                const task = document.createElement('button');
+                task.id = `task-${id}`;
+                task.className = `task-item p-2 rounded hover:bg-white/10 transition-colors active`;
+                task.onclick = () => { if (windows[id].minimized) appManager.restoreWindow(id); else if (win.style.zIndex == zIndex) appManager.minimizeWindow(id); else appManager.focusWindow(id); };
+                
+                const taskIconHtml = def.img
+                    ? `<img src="${def.img}" class="w-5 h-5 rounded drop-shadow-md">`
+                    : `<i data-lucide="${def.icon}" class="w-5 h-5 ${def.color}"></i>`;
+                task.innerHTML = taskIconHtml;
+                
+                document.getElementById('taskbar-apps').appendChild(task);
+                
+                lucide.createIcons({root: win});
+                lucide.createIcons({root: task});
+                
+                if (def.init) def.init(id, win.querySelector('.content-area'), arg);
+                appManager.makeDraggable(win, win.querySelector('.titlebar'));
+                appManager.makeResizable(win);
+                win.onmousedown = () => appManager.focusWindow(id);
+                setTimeout(() => { win.classList.remove('opening'); win.classList.add('open'); }, 10);
+            },
+            closeWindow: (id) => { 
+                if(windows[id]?.unsub) windows[id].unsub();
+                const w = document.getElementById(id); 
+                if(w) { 
+                    w.remove(); 
+                    document.getElementById(`task-${id}`)?.remove(); 
+                    delete windows[id]; 
+                } 
+            },
+            minimizeWindow: (id) => { 
+                const w = document.getElementById(id); 
+                if (w) {
+                    w.classList.add('minimized'); 
+                    windows[id].minimized = true; 
+                    const task = document.getElementById(`task-${id}`);
+                    if(task) {
+                        task.classList.remove('active'); 
+                        task.classList.add('opacity-50'); 
+                    }
+                }
+            },
+            restoreWindow: (id) => { 
+                const w = document.getElementById(id); 
+                if (w) {
+                    w.classList.remove('minimized'); 
+                    windows[id].minimized = false; 
+                    appManager.focusWindow(id); 
+                    const task = document.getElementById(`task-${id}`);
+                    if(task) task.classList.remove('opacity-50'); 
+                }
+            },
+            maximizeWindow: (id) => { 
+                const w = document.getElementById(id); 
+                const state = windows[id]; 
+                if(state.maximized) { w.classList.remove('maximized'); state.maximized = false; w.style.transform = ''; } 
+                else { w.classList.add('maximized'); state.maximized = true; } 
+            },
+            focusWindow: (id) => { 
+                const w = document.getElementById(id); 
+                if(windows[id] && windows[id].workspace !== currentWorkspace && !windows[id].isOverlay) window.toggleWorkspace();
+                if(w) { 
+                    w.style.zIndex = ++zIndex; 
+                    document.querySelectorAll('.task-item').forEach(t=>t.classList.remove('active')); 
+                    document.getElementById(`task-${id}`)?.classList.add('active'); 
+                } 
+            },
+            makeDraggable: (elm, handle) => { 
+                let pos1=0, pos2=0, pos3=0, pos4=0; const snapPreview = document.getElementById('snap-preview');
+                handle.onmousedown = (e) => { 
+                    if(e.target.closest('button') || (windows[elm.id] && windows[elm.id].maximized)) return; 
+                    e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; elm.classList.add('dragging');
+                    document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; elm.classList.remove('dragging'); snapPreview.classList.remove('opacity-100'); snapPreview.classList.add('opacity-0'); if (e.clientX < 20) { elm.style.top = '0'; elm.style.left = '0'; elm.style.width = '50vw'; elm.style.height = 'calc(100vh - 48px)'; } else if (e.clientX > window.innerWidth - 20) { elm.style.top = '0'; elm.style.left = '50vw'; elm.style.width = '50vw'; elm.style.height = 'calc(100vh - 48px)'; } else if (e.clientY < 20) { appManager.maximizeWindow(elm.id); } }; 
+                    document.onmousemove = (e) => { e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; elm.style.top = (elm.offsetTop - pos2) + "px"; elm.style.left = (elm.offsetLeft - pos1) + "px"; snapPreview.classList.remove('opacity-100'); snapPreview.classList.add('opacity-0'); if (e.clientX < 20) { snapPreview.style.top='0'; snapPreview.style.left='0'; snapPreview.style.width='50%'; snapPreview.style.height='calc(100% - 48px)'; snapPreview.classList.remove('opacity-0'); snapPreview.classList.add('opacity-100'); } else if (e.clientX > window.innerWidth - 20) { snapPreview.style.top='0'; snapPreview.style.left='50%'; snapPreview.style.width='50%'; snapPreview.style.height='calc(100% - 48px)'; snapPreview.classList.remove('opacity-0'); snapPreview.classList.add('opacity-100'); } else if (e.clientY < 20) { snapPreview.style.top='0'; snapPreview.style.left='0'; snapPreview.style.width='100%'; snapPreview.style.height='calc(100% - 48px)'; snapPreview.classList.remove('opacity-0'); snapPreview.classList.add('opacity-100'); } }; appManager.focusWindow(elm.id); }; 
+            },
+            makeResizable: (elm) => { 
+                const resizers = elm.querySelectorAll('.resizer'); 
+                resizers.forEach(r => { 
+                    r.onmousedown = (e) => { 
+                        e.preventDefault(); const startX = e.pageX, startY = e.pageY; const startW = parseFloat(getComputedStyle(elm).width), startH = parseFloat(getComputedStyle(elm).height); 
+                        document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; }; 
+                        document.onmousemove = (e) => { if(r.classList.contains('right') || r.classList.contains('corner')) elm.style.width = (startW + e.pageX - startX) + 'px'; if(r.classList.contains('bottom') || r.classList.contains('corner')) elm.style.height = (startH + e.pageY - startY) + 'px'; }; 
+                        appManager.focusWindow(elm.id); 
+                    }; 
+                }); 
+            }
+        };
+
+        function renderDesktop() {
+            const c = document.getElementById('desktop-icons'); 
+            c.innerHTML = '';
+            c.className = "w-full h-full relative flex flex-col flex-wrap content-start gap-2 p-2";
+
+            Object.entries(fs.getPath('/home/user/Desktop').children).forEach(([name, data]) => {
+                const d = document.createElement('div'); 
+                d.className = "flex flex-col items-center gap-1 hover:bg-white/5 rounded p-2 cursor-pointer w-24 relative transition-colors";
+                
+                // Apply saved coordinates if they exist
+                if (data.x !== undefined && data.y !== undefined) {
+                    d.style.position = 'absolute';
+                    d.style.left = data.x + 'px';
+                    d.style.top = data.y + 'px';
+                }
+                
+                const iconHtml = data.img 
+                    ? `<img src="${data.img}" class="w-10 h-10 drop-shadow-lg pointer-events-none rounded-xl" draggable="false">`
+                    : `<i data-lucide="${data.icon||'file'}" class="w-8 h-8 ${data.color||'text-gray-300'} pointer-events-none"></i>`;
+                    
+                d.innerHTML = `<div class="w-12 h-12 flex items-center justify-center pointer-events-none">${iconHtml}</div><span class="text-xs text-center bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded text-white shadow pointer-events-none w-full truncate">${name}</span>`;
+                c.appendChild(d);
+
+                d.onmousedown = (e) => {
+                    e.preventDefault();
+                    let startX = e.clientX, startY = e.clientY;
+                    let isDragging = false;
+
+                    const move = (ev) => {
+                        const dx = ev.clientX - startX;
+                        const dy = ev.clientY - startY;
+
+                        if (!isDragging && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+                            isDragging = true;
+                            if (d.style.position !== 'absolute') {
+                                const iconRect = d.getBoundingClientRect();
+                                const containerRect = c.getBoundingClientRect();
+                                d.style.position = 'absolute';
+                                d.style.left = (iconRect.left - containerRect.left) + 'px';
+                                d.style.top = (iconRect.top - containerRect.top) + 'px';
+                            }
+                            d.style.zIndex = '50';
+                        }
+
+                        if (isDragging) {
+                            d.style.left = (parseFloat(d.style.left) + ev.clientX - startX) + 'px';
+                            d.style.top = (parseFloat(d.style.top) + ev.clientY - startY) + 'px';
+                            startX = ev.clientX;
+                            startY = ev.clientY;
+                        }
+                    };
+
+                    const up = () => {
+                        document.removeEventListener('mousemove', move);
+                        document.removeEventListener('mouseup', up);
+                        d.style.zIndex = '';
+                        
+                        if (!isDragging) {
+                            eval(data.action || `openApp('editor', '/home/user/Desktop/${name}')`);
+                        } else {
+                            // Save new coordinates persistently
+                            data.x = parseFloat(d.style.left);
+                            data.y = parseFloat(d.style.top);
+                            fs.updateNode();
+                        }
+                    };
+
+                    document.addEventListener('mousemove', move);
+                    document.addEventListener('mouseup', up);
+                };
+            });
+            lucide.createIcons({root:c});
+        }
+
+        function populateMenu() {
+            const list = document.getElementById('menu-list');
+            Object.entries(appDefinitions).forEach(([k, app]) => {
+                if(app.hidden) return;
+                const b = document.createElement('button'); b.className = "flex items-center gap-3 p-2 rounded hover:bg-blue-600/50 text-left";
+                b.onclick = () => { appManager.openApp(k); document.getElementById('start-menu').classList.add('opacity-0', 'pointer-events-none'); };
+                
+                const menuIconHtml = app.img
+                    ? `<img src="${app.img}" class="w-5 h-5 rounded shadow-sm">`
+                    : `<i data-lucide="${app.icon}" class="w-5 h-5 ${app.color}"></i>`;
+                    
+                b.innerHTML = `${menuIconHtml}<span class="text-sm text-gray-200">${app.title}</span>`;
+                list.appendChild(b);
+            });
+            lucide.createIcons({root: list});
+        }
+
+        function checkForUpdates() {
+            setTimeout(() => {
+                if (installedVersion !== TARGET_VERSION) {
+                    const btnId = 'update-btn-' + Date.now();
+                    const msg = `System update available (${TARGET_VERSION}).<br><button id="${btnId}" class="mt-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-bold w-full transition-colors pointer-events-auto">Update Now</button>`;
+                    window.notify("System Update", msg, 10000); 
+                    setTimeout(() => { const btn = document.getElementById(btnId); if(btn) btn.onclick = () => { document.getElementById('notification-area').innerHTML = ''; window.startSystemUpdate(); }; }, 100);
+                }
+            }, 1500);
+        }
+
+        let publishCallback = null;
+        window.openPublishModal = (callback) => { publishCallback = callback; const modal = document.getElementById('publish-modal'); const content = document.getElementById('publish-modal-content'); modal.classList.remove('hidden'); requestAnimationFrame(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); content.classList.add('scale-100'); }); document.getElementById('pub-name').value = ''; document.getElementById('pub-desc').value = ''; document.getElementById('pub-author').value = userData ? userData.username : 'User'; };
+        window.closePublishModal = () => { const modal = document.getElementById('publish-modal'); const content = document.getElementById('publish-modal-content'); modal.classList.add('opacity-0'); content.classList.remove('scale-100'); content.classList.add('scale-95'); setTimeout(() => modal.classList.add('hidden'), 200); publishCallback = null; };
+        document.getElementById('pub-confirm-btn').onclick = () => { const name = document.getElementById('pub-name').value; const desc = document.getElementById('pub-desc').value; const author = document.getElementById('pub-author').value; if(!name) { alert("App name is required"); return; } if(publishCallback) publishCallback(name, desc, author); closePublishModal(); };
+
+        document.getElementById('app-uploader').onchange = (e) => {
+            const file = e.target.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const path = `/home/user/apps/${file.name}`;
+                if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
+                fs.createPath(path, 'file', ev.target.result);
+                fs.getPath('/home/user/Desktop').children[file.name.replace('.html','')] = { type: 'link', action: `openApp('runner', '${path}')`, icon: 'box', color: 'text-orange-500' };
+                renderDesktop(); window.notify("App Installed", file.name);
+            };
+            reader.readAsText(file); e.target.value = '';
+        };
+
+        const menuBtn = document.getElementById('menu-btn');
+        const startMenu = document.getElementById('start-menu');
+        menuBtn.onclick = (e) => { e.stopPropagation(); startMenu.classList.toggle('opacity-0'); startMenu.classList.toggle('pointer-events-none'); };
+        document.onclick = (e) => { if(!startMenu.contains(e.target) && !menuBtn.contains(e.target)) startMenu.classList.add('opacity-0', 'pointer-events-none'); if(!document.getElementById('context-menu').contains(e.target)) document.getElementById('context-menu').classList.add('hidden'); };
+        window.addEventListener('contextmenu', (e) => { e.preventDefault(); if(e.target.closest('.window') || e.target.closest('#start-menu') || e.target.closest('.taskbar')) return; const cm = document.getElementById('context-menu'); cm.style.left = e.clientX + 'px'; cm.style.top = e.clientY + 'px'; cm.classList.remove('hidden'); });
+
+        window.startSystemUpdate = () => {
+            document.getElementById('update-screen').classList.remove('hidden');
+            const updateText = document.getElementById('update-text'); const updateBar = document.getElementById('update-bar');
+            const steps = [{ msg: "Downloading...", progress: 30 }, { msg: "Installing...", progress: 70 }, { msg: "Finalizing...", progress: 100 }];
+            let step = 0;
+            const interval = setInterval(() => {
+                if (step >= steps.length) { clearInterval(interval); localStorage.setItem('gemini_os_version', TARGET_VERSION); setTimeout(() => location.reload(), 1000); } 
+                else { updateText.innerText = steps[step].msg; updateBar.style.width = steps[step].progress + "%"; step++; }
+            }, 1000);
+        };
+
+        let setupSelectedTheme = 'dark';
+        window.selectSetupTheme = (theme) => {
+            setupSelectedTheme = theme;
+            const dbn = document.getElementById('theme-dark-btn');
+            const lbn = document.getElementById('theme-light-btn');
+            if(theme === 'dark') {
+                dbn.className = "flex-1 bg-blue-600 text-white py-2 rounded-lg border border-blue-500 transition-colors font-semibold";
+                lbn.className = "flex-1 bg-gray-800 text-gray-300 py-2 rounded-lg border border-gray-600 transition-colors font-semibold";
+                applyTheme('dark');
+            } else {
+                lbn.className = "flex-1 bg-blue-600 text-white py-2 rounded-lg border border-blue-500 transition-colors font-semibold";
+                dbn.className = "flex-1 bg-gray-800 text-gray-300 py-2 rounded-lg border border-gray-600 transition-colors font-semibold";
+                applyTheme('light');
+            }
+        };
+
+        function updateUIAfterLogin() {
+            if (userData) {
+                const startMenuUser = document.getElementById('menu-user');
+                const startMenuAvatar = document.getElementById('menu-avatar');
+                if (startMenuUser) startMenuUser.innerText = userData.username;
+                if (startMenuAvatar) startMenuAvatar.innerText = userData.username.charAt(0).toUpperCase();
+                applyTheme(userData.theme || 'dark');
+            }
+        }
+
+        window.finishSetup = () => {
+            const user = document.getElementById('setup-user').value.trim();
+            const pass = document.getElementById('setup-pass').value.trim();
+            const msg = document.getElementById('setup-msg');
+
+            if(!user) { msg.innerText = "Username is required!"; return; }
+
+            userData = { username: user, password: pass, theme: setupSelectedTheme };
+            localStorage.setItem('gemini_os_user_data', JSON.stringify(userData));
+
+            document.getElementById('setup-screen').classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                const setupEl = document.getElementById('setup-screen');
+                if(setupEl) setupEl.remove();
+                updateUIAfterLogin();
+                window.notify("Setup Complete", `Welcome to Nexus OS, ${user}!`);
+                window.updatesChecked = true;
+                checkForUpdates();
+            }, 500);
+        };
+
+        // Login
+        window.lockSystem = () => {
+            const startMenu = document.getElementById('start-menu');
+            if (startMenu) startMenu.classList.add('opacity-0', 'pointer-events-none');
+            const loginEl = document.getElementById('login-screen');
+            if (loginEl) {
+                document.getElementById('login-pass').value = '';
+                document.getElementById('login-msg').innerText = '';
+                loginEl.classList.remove('hidden');
+                setTimeout(() => {
+                    loginEl.classList.remove('opacity-0', 'pointer-events-none');
+                }, 50);
+            }
+        };
+
+        window.attemptLogin = () => {
+            const pass = document.getElementById('login-pass').value;
+            if(userData && userData.password && pass !== userData.password) {
+                document.getElementById('login-msg').innerText = "Incorrect password!";
+                return;
+            }
+            document.getElementById('login-screen').classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => { 
+                const loginEl = document.getElementById('login-screen');
+                if(loginEl) loginEl.classList.add('hidden'); // Hiding instead of removing to reuse it
+                updateUIAfterLogin();
+                window.notify("Welcome Back", "Logged in successfully."); 
+                
+                if (!window.updatesChecked) {
+                    checkForUpdates(); 
+                    window.updatesChecked = true;
+                }
+            }, 500);
+        };
+        document.getElementById('login-pass').addEventListener('keydown', (e) => { if(e.key === 'Enter') attemptLogin(); });
+
+        const bootText = document.getElementById('boot-text');
+        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.0...", "[ OK ] Mounting Filesystem...", "Starting Desktop..."];
+        let bi = 0;
+        function runBoot() {
+            if(bi < bootLines.length) { const d = document.createElement('div'); d.innerHTML = bootLines[bi].includes("OK") ? `<span class="text-green-500 font-bold">[ OK ]</span> ${bootLines[bi].replace("[ OK ] ", "")}` : bootLines[bi]; bootText.appendChild(d); bi++; setTimeout(runBoot, 150); } 
+            else { 
+                setTimeout(() => { 
+                    const bs = document.getElementById('boot-screen');
+                    if(bs) bs.remove(); 
+                    if (userData) {
+                        document.getElementById('login-screen').classList.remove('hidden'); 
+                        document.getElementById('login-user-display').innerText = userData.username;
+                        document.getElementById('login-avatar').innerText = userData.username.charAt(0).toUpperCase();
+                        document.getElementById('version-display').innerText = `GeminiOS v${installedVersion}`;
+                        setTimeout(() => document.getElementById('login-screen').classList.remove('opacity-0'), 50);
+                    } else {
+                        document.getElementById('setup-screen').classList.remove('hidden');
+                        setTimeout(() => document.getElementById('setup-screen').classList.remove('opacity-0'), 50);
+                    }
+                }, 500); 
+            }
+        }
+
+        async function initBattery() {
+            const container = document.getElementById('battery-container');
+            if (navigator.getBattery) {
+                try {
+                    const battery = await navigator.getBattery();
+                    function update() { 
+                        const level = Math.round(battery.level * 100); 
+                        const isCharging = battery.charging; 
+                        container.innerHTML = `<i data-lucide="${isCharging ? 'battery-charging' : 'battery'}" class="w-4 h-4"></i> <span class="text-xs font-mono ml-1">${level}%</span>`; 
+                        lucide.createIcons({root: container}); 
+                    }
+                    battery.addEventListener('levelchange', update); battery.addEventListener('chargingchange', update); update();
+                } catch(e) { console.log(e); }
+            }
+        }
+
+        window.onload = () => {
+            lucide.createIcons(); populateMenu(); renderDesktop(); runBoot(); initBattery();
+            setInterval(() => {
+                const el = document.getElementById('clock-btn') || document.getElementById('clock');
+                if(el) el.innerText = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
