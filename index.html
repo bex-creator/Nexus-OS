@@ -361,15 +361,34 @@
                     btn.innerHTML = '<i data-lucide="pause" class="w-5 h-5"></i>';
                     lucide.createIcons({root: btn});
                     document.getElementById('media-taskbar-btn').classList.remove('hidden');
+                    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
                 });
                 mediaManager.audio.addEventListener('pause', () => {
                     const btn = document.getElementById('media-play-btn');
                     btn.innerHTML = '<i data-lucide="play" class="w-5 h-5 ml-1"></i>';
                     lucide.createIcons({root: btn});
+                    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
                 });
                 document.getElementById('media-progress').addEventListener('input', (e) => {
                     if(mediaManager.audio.duration) mediaManager.audio.currentTime = (e.target.value / 100) * mediaManager.audio.duration;
                 });
+
+                // Connect to the host device's physical media controls
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.setActionHandler('play', () => mediaManager.audio.play());
+                    navigator.mediaSession.setActionHandler('pause', () => mediaManager.audio.pause());
+                    navigator.mediaSession.setActionHandler('previoustrack', () => mediaManager.prev());
+                    navigator.mediaSession.setActionHandler('nexttrack', () => mediaManager.next());
+                    navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                        mediaManager.audio.currentTime = Math.max(mediaManager.audio.currentTime - (details.seekOffset || 10), 0);
+                    });
+                    navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                        mediaManager.audio.currentTime = Math.min(mediaManager.audio.currentTime + (details.seekOffset || 10), mediaManager.audio.duration);
+                    });
+                    navigator.mediaSession.setActionHandler('seekto', (details) => {
+                        mediaManager.audio.currentTime = details.seekTime;
+                    });
+                }
             },
             playTrack: (index) => {
                 if (index < 0 || index >= mediaManager.playlist.length) return;
@@ -380,6 +399,18 @@
                 document.getElementById('media-title').innerText = track.title;
                 document.getElementById('media-artist').innerText = track.artist;
                 document.getElementById('media-taskbar-btn').classList.remove('hidden');
+
+                // Update the host device's media overlay (e.g. Windows volume flyout / Mac control center)
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: track.title,
+                        artist: track.artist,
+                        album: 'Nexus OS',
+                        artwork: [
+                            { src: 'https://placehold.co/512x512/1f2937/818cf8.png?text=Music', sizes: '512x512', type: 'image/png' }
+                        ]
+                    });
+                }
             },
             togglePlay: () => {
                 if(mediaManager.currentIndex === -1) mediaManager.playTrack(0);
