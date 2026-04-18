@@ -152,7 +152,7 @@
     <!-- Update Screen -->
     <div id="update-screen" class="absolute inset-0 bg-black flex flex-col justify-center items-center terminal-font text-white hidden">
         <i data-lucide="refresh-cw" class="w-16 h-16 animate-spin text-blue-500 mb-6"></i>
-        <h2 class="text-2xl font-bold mb-2">Updating Nexus OS to v4.2</h2>
+        <h2 class="text-2xl font-bold mb-2">Updating Nexus OS to v4.3</h2>
         <p id="update-text" class="text-gray-400 text-sm">Initializing...</p>
         <div class="w-64 h-1 bg-gray-800 rounded mt-4 overflow-hidden"><div id="update-bar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div></div>
     </div>
@@ -200,7 +200,7 @@
             <button onclick="attemptLogin()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded transition-colors"><i data-lucide="arrow-right" class="w-5 h-5"></i></button>
         </div>
         <p id="login-msg" class="text-red-400 text-sm mt-4 h-5"></p>
-        <div class="absolute bottom-10 text-gray-400 text-xs" id="version-display">Nexus OS v4.2</div>
+        <div class="absolute bottom-10 text-gray-400 text-xs" id="version-display">Nexus OS v4.3</div>
     </div>
 
     <!-- Desktop Area -->
@@ -279,7 +279,7 @@
         let currentUser = null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'gemini-os-default';
 
-        const TARGET_VERSION = "4.2"; 
+        const TARGET_VERSION = "4.3"; 
         let installedVersion = localStorage.getItem('gemini_os_version') || "3.0";
         let userWallpaper = localStorage.getItem('gemini_os_wallpaper') || null;
         let userData = JSON.parse(localStorage.getItem('gemini_os_user_data'));
@@ -498,7 +498,7 @@
         }
 
         const svgStore = "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22gStore%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2310b981%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23047857%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2224%22%20fill%3D%22url%28%23gStore%29%22%2F%3E%3Cpath%20d%3D%22M%2030%2040%20L%2070%2040%20L%2075%2075%20L%2025%2075%20Z%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.9%22%2F%3E%3Cpath%20d%3D%22M%2035%2040%20C%2035%2020%2C%2065%2020%2C%2065%2040%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2255%22%20r%3D%226%22%20fill%3D%22%23047857%22%2F%3E%3C%2Fsvg%3E";
-        const svgChrome = "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20256%22%3E%3Ccircle%20cx%3D%22128%22%20cy%3D%22128%22%20r%3D%22128%22%20fill%3D%22%23fbbc05%22%2F%3E%3Cpath%20d%3D%22M128%200a128%20128%200%200%201%20110.8%20192L128%20128Z%22%20fill%3D%22%23ea4335%22%2F%3E%3Cpath%20d%3D%22M17.2%20192A128%20128%200%200%201%20128%200l55.4%2096Z%22%20fill%3D%22%2334a853%22%2F%3E%3Ccircle%20cx%3D%22128%22%20cy%3D%22128%22%20r%3D%2256%22%20fill%3D%22%23fff%22%2F%3E%3Ccircle%20cx%3D%22128%22%20cy%3D%22128%22%20r%3D%2244%22%20fill%3D%22%234285f4%22%2F%3E%3C%2Fsvg%3E";
+        const svgNexus = "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20256%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22nexusGrad%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2322d3ee%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23a855f7%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Ccircle%20cx%3D%22128%22%20cy%3D%22128%22%20r%3D%22120%22%20fill%3D%22%230a0a0f%22%20stroke%3D%22%2322d3ee%22%20stroke-width%3D%228%22%2F%3E%3Cpath%20d%3D%22M80%20176%20L80%2080%20L176%20176%20L176%2080%22%20fill%3D%22none%22%20stroke%3D%22url%28%23nexusGrad%29%22%20stroke-width%3D%2224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E";
 
         const defaultFileSystem = { root: { type: 'dir', children: { home: { type: 'dir', children: { user: { type: 'dir', children: {
             Desktop: { type: 'dir', children: {
@@ -508,7 +508,7 @@
                 "Paint": { type: 'link', action: "openApp('paint')", icon: 'brush', color: 'text-pink-400' },
                 "Calculator": { type: 'link', action: "openApp('calculator')", icon: 'calculator', color: 'text-gray-200' },
                 "Music": { type: 'link', action: "openApp('music')", icon: 'music', color: 'text-indigo-400' },
-                "Chrome": { type: 'link', action: "openApp('browser', 'home')", icon: 'chrome', color: 'text-blue-500', img: svgChrome }
+                "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus }
             }},
             apps: { type: 'dir', children: {} },
             Documents: { type: 'dir', children: { "hello_world.html": { type: 'file', content: "<h1 style='color:blue'>Hello World</h1><p>Run me!</p>" } }},
@@ -518,12 +518,20 @@
         let fileSystem = JSON.parse(localStorage.getItem('nexus_os_fs')) || defaultFileSystem;
         const saveFS = () => localStorage.setItem('nexus_os_fs', JSON.stringify(fileSystem));
 
-        // Migrate Old "Nexus" browser icon to "Chrome" for existing users
+        // Migrate Old "Chrome" or "Nexus" browser icon to new Nexus Browser
         const deskNode = fileSystem.root.children?.home?.children?.user?.children?.Desktop;
-        if (deskNode && deskNode.children["Nexus"]) {
-            deskNode.children["Chrome"] = deskNode.children["Nexus"];
-            delete deskNode.children["Nexus"];
-            deskNode.children["Chrome"].img = svgChrome;
+        if (deskNode) {
+            if (deskNode.children["Chrome"]) {
+                deskNode.children["Nexus Browser"] = deskNode.children["Chrome"];
+                delete deskNode.children["Chrome"];
+            } else if (deskNode.children["Nexus"]) {
+                deskNode.children["Nexus Browser"] = deskNode.children["Nexus"];
+                delete deskNode.children["Nexus"];
+            }
+            if (deskNode.children["Nexus Browser"]) {
+                deskNode.children["Nexus Browser"].img = svgNexus;
+                deskNode.children["Nexus Browser"].color = 'text-cyan-400';
+            }
             saveFS();
         }
 
@@ -539,7 +547,20 @@
         };
 
         const appDefinitions = {
-            browser: { title: 'Chrome', icon: 'chrome', color: 'text-blue-500', img: svgChrome, singleInstance: true, instanceFuncs: {}, render: () => `<div class="h-full bg-[#202124] flex flex-col text-sm"><div class="bg-[#101112] flex items-end px-2 pt-2 gap-1 overflow-x-auto tab-bar-container relative h-10 custom-scrollbar flex-shrink-0"> <button class="new-tab-btn text-gray-400 hover:bg-white/10 p-1.5 rounded-full mb-1 ml-1 shrink-0"><i data-lucide="plus" class="w-4 h-4"></i></button></div><div class="bg-[#35363a] p-2 flex gap-2 items-center z-10 border-b border-[#202124] shrink-0"><div class="flex items-center gap-1 text-gray-400"><button class="hover:bg-white/10 rounded-full p-1.5 transition-colors browser-back"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button class="hover:bg-white/10 rounded-full p-1.5 transition-colors browser-forward"><i data-lucide="arrow-right" class="w-4 h-4"></i></button><button class="hover:bg-white/10 rounded-full p-1.5 transition-colors browser-reload"><i data-lucide="rotate-cw" class="w-4 h-4"></i></button><button class="hover:bg-white/10 rounded-full p-1.5 transition-colors browser-home"><i data-lucide="home" class="w-4 h-4"></i></button><button class="hover:bg-white/10 rounded-full p-1.5 transition-colors browser-external" title="Open in New Tab"><i data-lucide="external-link" class="w-4 h-4"></i></button></div><div class="flex-1 relative flex items-center"><div class="absolute left-3 text-gray-400"><i data-lucide="info" class="w-3 h-3"></i></div><input type="text" class="browser-url w-full bg-[#202124] border border-[#5f6368] rounded-full pl-8 pr-4 py-1.5 text-gray-200 text-xs focus:outline-none focus:border-blue-500 focus:bg-[#202124] transition-colors" placeholder="Search Google or type a URL..."></div></div><div class="flex-1 relative tab-content-container bg-white"></div></div>`, init: (id, root, startUrl) => { const tabBar = root.querySelector('.tab-bar-container'); const contentContainer = root.querySelector('.tab-content-container'); const input = root.querySelector('.browser-url'); const newTabBtn = root.querySelector('.new-tab-btn'); let tabs = {}; let activeTabId = null; let tabCounter = 0; const createTab = (url = 'home') => { const tId = 'tab-' + (++tabCounter); const tabBtn = document.createElement('div'); tabBtn.className = 'chrome-tab group flex items-center justify-between gap-2 px-3 py-1.5 text-gray-400 hover:bg-[#202124] rounded-t-lg min-w-[140px] max-w-[220px] cursor-pointer border-r border-l border-transparent relative shrink-0 transition-colors'; tabBtn.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i data-lucide="globe" class="w-3 h-3 shrink-0 tab-icon"></i><span class="truncate text-xs tab-title">New Tab</span></div><button class="close-tab hover:bg-gray-600 p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shrink-0"><i data-lucide="x" class="w-3 h-3"></i></button>`; tabBar.insertBefore(tabBtn, newTabBtn); const contentDiv = document.createElement('div'); contentDiv.className = 'absolute inset-0 w-full h-full hidden bg-white'; const frame = document.createElement('iframe'); frame.className = 'w-full h-full border-none hidden'; frame.sandbox = 'allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts'; const mock = document.createElement('div'); mock.className = 'absolute inset-0 bg-[#202124] overflow-y-auto hidden'; contentDiv.appendChild(frame); contentDiv.appendChild(mock); contentContainer.appendChild(contentDiv); tabs[tId] = { btn: tabBtn, content: contentDiv, frame, mock, url: '', title: 'New Tab' }; tabBtn.onmousedown = (e) => { if(!e.target.closest('.close-tab')) switchTab(tId); }; tabBtn.querySelector('.close-tab').onmousedown = (e) => { e.stopPropagation(); closeTab(tId); }; lucide.createIcons({root: tabBtn}); switchTab(tId); load(url, tId); }; const switchTab = (tId) => { if(!tabs[tId]) return; activeTabId = tId; Object.keys(tabs).forEach(id => { const t = tabs[id]; if(id === tId) { t.btn.classList.add('bg-[#35363a]', 'text-gray-100'); t.btn.classList.remove('text-gray-400', 'hover:bg-[#202124]'); t.content.classList.remove('hidden'); input.value = (t.url === 'home') ? '' : t.url; } else { t.btn.classList.remove('bg-[#35363a]', 'text-gray-100'); t.btn.classList.add('text-gray-400', 'hover:bg-[#202124]'); t.content.classList.add('hidden'); } }); }; const closeTab = (tId) => { const t = tabs[tId]; if(!t) return; t.btn.remove(); t.content.remove(); delete tabs[tId]; const remaining = Object.keys(tabs); if(remaining.length === 0) { createTab('home'); } else if (activeTabId === tId) { switchTab(remaining[remaining.length - 1]); } }; const load = (url, tId = activeTabId) => { const t = tabs[tId]; if(!t) return; let target = url.trim(); t.url = target; const titleEl = t.btn.querySelector('.tab-title'); const iconEl = t.btn.querySelector('.tab-icon'); if(target === 'home' || !target) { t.title = 'New Tab'; titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'globe'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'globe'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-gray-400'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } t.mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full bg-[#202124] relative overflow-hidden"><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none"><span class="text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-red-500 to-yellow-500 drop-shadow-[0_0_15px_rgba(66,133,244,0.3)]">CHROME</span></div><div class="w-full max-w-lg relative"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"></i><input type="text" class="home-search w-full bg-[#303134] border border-[#5f6368] rounded-full py-3 pl-12 pr-4 text-white focus:outline-none focus:border-blue-500 hover:bg-[#3c4043] transition-all" placeholder="Search the web..."></div></div></div>`; setTimeout(() => { const hs = t.mock.querySelector('.home-search'); if(hs && activeTabId === tId){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value, tId); }}; } }, 10); t.mock.classList.remove('hidden'); t.frame.classList.add('hidden'); lucide.createIcons({root: t.mock}); if(activeTabId === tId) input.value = ''; return; } if(target.startsWith('/')) { const file = fs.getPath(target); t.frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); if(activeTabId === tId) input.value = "file://" + target; t.title = target.split('/').pop(); titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'file'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'file'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-gray-400'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(target); } } t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); t.frame.src = target; if(activeTabId === tId) input.value = target; try { const urlObj = new URL(target); t.title = urlObj.hostname; const img = document.createElement('img'); img.src = `https://s2.googleusercontent.com/s2/favicons?domain=${urlObj.hostname}&sz=16`; img.className = 'w-3 h-3 shrink-0 tab-icon'; if(iconEl) iconEl.replaceWith(img); } catch { t.title = target; } titleEl.innerText = t.title; }; newTabBtn.onclick = () => createTab('home'); root.querySelector('.browser-home').onclick = () => load('home'); root.querySelector('.browser-reload').onclick = () => load(tabs[activeTabId].url); root.querySelector('.browser-back').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.back(); } catch(e){} }; root.querySelector('.browser-forward').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.forward(); } catch(e){} }; root.querySelector('.browser-external').onclick = () => { if(tabs[activeTabId] && tabs[activeTabId].url && tabs[activeTabId].url !== 'home') window.open(tabs[activeTabId].url, '_blank'); }; input.onkeydown = (e) => { if(e.key==='Enter') load(input.value); }; createTab(startUrl || 'home'); } },
+            browser: { title: 'Nexus Browser', icon: 'globe', color: 'text-cyan-400', img: svgNexus, singleInstance: true, instanceFuncs: {}, 
+                render: () => `<div class="h-full bg-[#0a0a0f] flex flex-col text-sm font-sans relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-br from-cyan-900/20 to-purple-900/20 pointer-events-none"></div><div class="bg-black/60 backdrop-blur-md flex items-end px-2 pt-2 gap-1 overflow-x-auto tab-bar-container relative h-10 custom-scrollbar flex-shrink-0 border-b border-cyan-500/30 z-10"> <button class="new-tab-btn text-cyan-400 hover:bg-cyan-500/20 p-1.5 rounded-md mb-1 ml-1 shrink-0 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div><div class="bg-black/80 backdrop-blur-xl p-2 flex gap-2 items-center z-10 border-b border-cyan-500/20 shrink-0"><div class="flex items-center gap-1 text-gray-400"><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-back"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-forward"><i data-lucide="arrow-right" class="w-4 h-4"></i></button><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-reload"><i data-lucide="rotate-cw" class="w-4 h-4"></i></button><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-home"><i data-lucide="home" class="w-4 h-4"></i></button></div><div class="flex-1 relative flex items-center group"><div class="absolute left-3 text-cyan-500/50 group-focus-within:text-cyan-400 transition-colors"><i data-lucide="globe" class="w-4 h-4"></i></div><input type="text" class="browser-url w-full bg-[#13141c]/80 border border-cyan-900/50 rounded-md pl-9 pr-4 py-1.5 text-cyan-100 text-xs focus:outline-none focus:border-cyan-500 focus:bg-[#1a1b26] focus:shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all" placeholder="Search the web or enter URL..."></div><div class="flex items-center gap-1"><button class="proxy-toggle p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors" title="Nexus Proxy: OFF (Click to bypass iframe blocks)"><i data-lucide="shield-off" class="w-4 h-4"></i></button><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-external" title="Pop Out"><i data-lucide="external-link" class="w-4 h-4"></i></button></div></div><div class="flex-1 relative tab-content-container bg-[#0a0a0f] z-0"></div></div>`, 
+                init: (id, root, startUrl) => { 
+                    const tabBar = root.querySelector('.tab-bar-container'); const contentContainer = root.querySelector('.tab-content-container'); const input = root.querySelector('.browser-url'); const newTabBtn = root.querySelector('.new-tab-btn'); const proxyBtn = root.querySelector('.proxy-toggle'); let proxyEnabled = false; let tabs = {}; let activeTabId = null; let tabCounter = 0; 
+                    
+                    proxyBtn.onclick = () => { proxyEnabled = !proxyEnabled; if(proxyEnabled) { proxyBtn.innerHTML = '<i data-lucide="shield-check" class="w-4 h-4 text-green-400"></i>'; proxyBtn.title = "Nexus Proxy: ON (Bypassing blocks)"; proxyBtn.classList.remove('text-red-400', 'hover:bg-red-500/20'); proxyBtn.classList.add('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); } else { proxyBtn.innerHTML = '<i data-lucide="shield-off" class="w-4 h-4 text-red-400"></i>'; proxyBtn.title = "Nexus Proxy: OFF (Click to bypass blocks)"; proxyBtn.classList.remove('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); proxyBtn.classList.add('text-red-400', 'hover:bg-red-500/20'); } lucide.createIcons({root: proxyBtn}); if(tabs[activeTabId] && tabs[activeTabId].url !== 'home') load(tabs[activeTabId].url); };
+
+                    const createTab = (url = 'home') => { const tId = 'tab-' + (++tabCounter); const tabBtn = document.createElement('div'); tabBtn.className = 'chrome-tab group flex items-center justify-between gap-2 px-3 py-1.5 text-cyan-700 hover:bg-cyan-900/30 rounded-t-md min-w-[140px] max-w-[220px] cursor-pointer border-t border-l border-r border-transparent relative shrink-0 transition-all mt-1'; tabBtn.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i data-lucide="zap" class="w-3 h-3 shrink-0 tab-icon"></i><span class="truncate text-xs tab-title">New Tab</span></div><button class="close-tab hover:bg-cyan-500/30 hover:text-cyan-200 text-cyan-600 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all shrink-0"><i data-lucide="x" class="w-3 h-3"></i></button>`; tabBar.insertBefore(tabBtn, newTabBtn); const contentDiv = document.createElement('div'); contentDiv.className = 'absolute inset-0 w-full h-full hidden bg-white'; const frame = document.createElement('iframe'); frame.className = 'w-full h-full border-none hidden bg-white'; frame.sandbox = 'allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts'; const mock = document.createElement('div'); mock.className = 'absolute inset-0 bg-[#0a0a0f] overflow-y-auto hidden'; contentDiv.appendChild(frame); contentDiv.appendChild(mock); contentContainer.appendChild(contentDiv); tabs[tId] = { btn: tabBtn, content: contentDiv, frame, mock, url: '', title: 'New Tab' }; tabBtn.onmousedown = (e) => { if(!e.target.closest('.close-tab')) switchTab(tId); }; tabBtn.querySelector('.close-tab').onmousedown = (e) => { e.stopPropagation(); closeTab(tId); }; lucide.createIcons({root: tabBtn}); switchTab(tId); load(url, tId); }; 
+                    const switchTab = (tId) => { if(!tabs[tId]) return; activeTabId = tId; Object.keys(tabs).forEach(id => { const t = tabs[id]; if(id === tId) { t.btn.classList.add('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.remove('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.remove('hidden'); input.value = (t.url === 'home') ? '' : t.url; } else { t.btn.classList.remove('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.add('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.add('hidden'); } }); }; 
+                    const closeTab = (tId) => { const t = tabs[tId]; if(!t) return; t.btn.remove(); t.content.remove(); delete tabs[tId]; const remaining = Object.keys(tabs); if(remaining.length === 0) { createTab('home'); } else if (activeTabId === tId) { switchTab(remaining[remaining.length - 1]); } }; 
+                    const load = (url, tId = activeTabId) => { const t = tabs[tId]; if(!t) return; let target = url.trim(); t.url = target; const titleEl = t.btn.querySelector('.tab-title'); const iconEl = t.btn.querySelector('.tab-icon'); if(target === 'home' || !target) { t.title = 'New Tab'; titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'zap'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'zap'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } t.mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full relative overflow-hidden"><div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/20 via-[#0a0a0f] to-[#0a0a0f]"></div><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none flex-col gap-2"><div class="w-20 h-20 rounded-full border-2 border-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.4)]"><i data-lucide="zap" class="w-10 h-10 text-cyan-400"></i></div><span class="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-cyan-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]">NEXUS</span></div><div class="w-full max-w-lg relative group"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-600 group-focus-within:text-cyan-400 transition-colors w-5 h-5"></i><input type="text" class="home-search w-full bg-[#13141c]/80 border border-cyan-900 rounded-lg py-4 pl-12 pr-4 text-cyan-50 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:border-cyan-700 transition-all backdrop-blur-sm" placeholder="Search Google securely..."></div></div></div>`; setTimeout(() => { const hs = t.mock.querySelector('.home-search'); if(hs && activeTabId === tId){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value, tId); }}; } }, 10); t.mock.classList.remove('hidden'); t.frame.classList.add('hidden'); lucide.createIcons({root: t.mock}); if(activeTabId === tId) input.value = ''; return; } if(target.startsWith('/')) { const file = fs.getPath(target); t.frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); if(activeTabId === tId) input.value = "file://" + target; t.title = target.split('/').pop(); titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'file-code'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'file-code'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(target); } } t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); let finalUrl = target; if(proxyEnabled && !target.startsWith('file://') && !target.includes('google.com')) { finalUrl = 'https://corsproxy.io/?' + encodeURIComponent(target); } t.frame.src = finalUrl; if(activeTabId === tId) input.value = target; try { const urlObj = new URL(target); t.title = urlObj.hostname; const img = document.createElement('img'); img.src = `https://s2.googleusercontent.com/s2/favicons?domain=${urlObj.hostname}&sz=16`; img.className = 'w-3 h-3 shrink-0 tab-icon rounded-sm'; if(iconEl) iconEl.replaceWith(img); } catch { t.title = target; } titleEl.innerText = t.title; }; 
+                    newTabBtn.onclick = () => createTab('home'); root.querySelector('.browser-home').onclick = () => load('home'); root.querySelector('.browser-reload').onclick = () => load(tabs[activeTabId].url); root.querySelector('.browser-back').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.back(); } catch(e){} }; root.querySelector('.browser-forward').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.forward(); } catch(e){} }; root.querySelector('.browser-external').onclick = () => { if(tabs[activeTabId] && tabs[activeTabId].url && tabs[activeTabId].url !== 'home') window.open(tabs[activeTabId].url, '_blank'); }; input.onkeydown = (e) => { if(e.key==='Enter') load(input.value); }; createTab(startUrl || 'home'); 
+                } 
+            },
             paint: { title: 'Paint', icon: 'brush', color: 'text-pink-400', render: () => `<div class="h-full flex flex-col bg-white"><div class="p-2 border-b flex gap-2 items-center bg-gray-100"><input type="color" class="paint-color" value="#000000"><input type="range" class="paint-size" min="1" max="20" value="5" class="w-24"><button class="paint-clear px-2 py-1 bg-gray-200 rounded text-xs">Clear</button></div><div class="flex-1 relative cursor-crosshair overflow-hidden"><canvas class="paint-canvas absolute inset-0"></canvas></div></div>`, init: (id, root) => { const canvas = root.querySelector('.paint-canvas'); const ctx = canvas.getContext('2d'); const color = root.querySelector('.paint-color'); const size = root.querySelector('.paint-size'); let painting = false; const resize = () => { canvas.width = canvas.parentElement.offsetWidth; canvas.height = canvas.parentElement.offsetHeight; }; setTimeout(resize, 10); const draw = (e) => { if (!painting) return; const rect = canvas.getBoundingClientRect(); ctx.lineWidth = size.value; ctx.lineCap = 'round'; ctx.strokeStyle = color.value; ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top); ctx.stroke(); ctx.beginPath(); ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top); }; canvas.addEventListener('mousedown', (e) => { painting = true; draw(e); }); canvas.addEventListener('mouseup', () => { painting = false; ctx.beginPath(); }); canvas.addEventListener('mousemove', draw); root.querySelector('.paint-clear').onclick = () => ctx.clearRect(0,0,canvas.width,canvas.height); } },
             calculator: { title: 'Calculator', icon: 'calculator', color: 'text-gray-200', width: '300px', height: '400px', render: () => `<div class="h-full bg-gray-900 flex flex-col p-4"><input type="text" class="calc-display w-full bg-gray-800 text-right text-3xl text-white p-4 rounded mb-4 outline-none" readonly value="0"><div class="grid grid-cols-4 gap-2 flex-1 button-grid"></div></div>`, init: (id, root) => { const display = root.querySelector('.calc-display'); const buttons = ['C','/','*','-','7','8','9','+','4','5','6','=','1','2','3','0']; const grid = root.querySelector('.button-grid'); let current = ''; buttons.forEach(btn => { const b = document.createElement('button'); b.className = `rounded text-xl font-bold transition-colors ${btn === '=' ? 'row-span-2 bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'} ${btn === '0' ? 'col-span-2' : ''}`; b.innerText = btn; b.onclick = () => { if(btn === 'C') { current = ''; display.value = '0'; } else if(btn === '=') { try { display.value = eval(current); current = display.value; } catch { display.value = 'Error'; current = ''; } } else { current += btn; display.value = current; } }; grid.appendChild(b); }); } },
             editor: { title: 'Code Editor', icon: 'code', color: 'text-yellow-400', render: () => `<div class="h-full bg-[#1e1e1e] flex flex-col"><div class="bg-[#2d2d2d] px-2 py-1 text-xs text-gray-300 flex items-center justify-between border-b border-gray-700"><div class="flex gap-2 items-center"><button class="editor-save hover:bg-white/10 px-2 py-1 rounded text-blue-400 font-bold">Save</button><button class="editor-run hover:bg-white/10 px-2 py-1 rounded text-green-400 font-bold flex gap-1 items-center"><i data-lucide="play" class="w-3 h-3"></i> Run</button><button class="editor-pub hover:bg-white/10 px-2 py-1 rounded text-purple-400 font-bold flex gap-1 items-center"><i data-lucide="cloud-upload" class="w-3 h-3"></i> Publish</button><span class="text-gray-500">|</span><span class="editor-filename text-gray-400">Untitled</span></div><div class="editor-msg text-green-400 opacity-0 transition-opacity">Saved!</div></div><textarea class="editor-content flex-1 bg-[#1e1e1e] text-gray-200 p-4 terminal-font resize-none focus:outline-none text-sm leading-relaxed" spellcheck="false" placeholder="<html>...</html>"></textarea></div>`, init: (id, root, filePath) => { const ta = root.querySelector('.editor-content'); const label = root.querySelector('.editor-filename'); const msg = (txt) => { const el = root.querySelector('.editor-msg'); el.innerText = txt; el.classList.remove('opacity-0'); setTimeout(() => el.classList.add('opacity-0'), 2000); }; if(filePath) { label.innerText = filePath; const f = fs.getPath(filePath); if(f) ta.value = f.content; } root.querySelector('.editor-save').onclick = () => { let path = filePath; if (!path) path = prompt("Save as (e.g. /home/user/apps/myapp.html):"); if (!path) return; if (!path.includes('.')) path += '.html'; if(path.includes('/apps/') && !fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir'); if(fs.createPath(path, 'file', ta.value)) { filePath = path; label.innerText = path; msg("Saved!"); } }; root.querySelector('.editor-run').onclick = () => window.openApp('runner', { content: ta.value, name: filePath || 'Preview' }); root.querySelector('.editor-pub').onclick = () => window.openPublishModal(async (name, desc, author) => { if(!db) { alert("Offline."); return; } try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'apps'), { name, description: desc, content: ta.value, author, timestamp: serverTimestamp() }); alert(`"${name}" Published!`); } catch(e) { alert(e.message); } }); } },
@@ -586,7 +607,148 @@
             },
 
             terminal: { title: 'Terminal', icon: 'terminal-square', color: 'text-gray-300', render: () => `<div class="h-full bg-[#1e1e1e] text-gray-300 p-2 terminal-font text-sm overflow-y-auto" onclick="this.querySelector('input').focus()"><div class="term-out"></div><div class="flex"><span class="text-green-400">user@nexus</span>:<span class="text-blue-400">~</span>$&nbsp;<input class="bg-transparent border-none outline-none flex-1 text-gray-200" autofocus></div></div>`, init: (id, root) => { const out = root.querySelector('.term-out'); const inp = root.querySelector('input'); const print = (t) => { const d=document.createElement('div'); d.innerHTML=t; out.appendChild(d); }; print("Nexus OS v4.0"); inp.onkeydown = (e) => { if(e.key === 'Enter') { const val = inp.value.trim(); print(`<span class="text-green-400">user</span>$ ${val}`); if(val==='clear')out.innerHTML=''; else if(val==='ls')print("Desktop Documents"); else if(val==='reboot')location.reload(); else if(val)print("Command not found."); inp.value=''; root.firstElementChild.scrollTop=root.firstElementChild.scrollHeight; } }; } },
-            settings: { title: 'Settings', icon: 'settings', color: 'text-gray-400', render: () => `<div class="p-6 bg-[#2d2d2d] h-full text-gray-200"><h2 class="text-xl font-bold mb-4">Settings</h2><div class="mb-4"><label class="block mb-2">Theme</label><div class="flex gap-2"><button onclick="applyTheme('dark')" class="px-3 py-1 bg-gray-700 rounded">Dark</button><button onclick="applyTheme('light')" class="px-3 py-1 bg-white text-black rounded">Light</button></div></div><div class="mt-4"><button class="text-blue-400 hover:underline block" onclick="window.startSystemUpdate()">Check Updates</button><button class="text-red-400 hover:underline block mt-4 text-sm" onclick="if(confirm('Wipe all OS data and reset to factory defaults?')) { localStorage.clear(); location.reload(); }">Reset All OS Data</button></div></div>` },
+            settings: { 
+                title: 'Settings', icon: 'settings', color: 'text-gray-400', width: '700px', height: '500px',
+                render: () => `<div class="h-full flex bg-[#1e1e1e] text-white font-sans overflow-hidden">
+                    <div class="w-48 bg-[#2d2d2d] border-r border-gray-700 flex flex-col shrink-0 z-10">
+                        <div class="p-4 font-bold text-lg border-b border-gray-700 flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5"></i> Settings</div>
+                        <button class="set-tab active p-3 text-left hover:bg-white/10 flex items-center gap-3 text-sm bg-blue-600/20 text-blue-400 border-r-2 border-blue-500 transition-colors" data-target="appearance"><i data-lucide="palette" class="w-4 h-4"></i> Appearance</button>
+                        <button class="set-tab p-3 text-left hover:bg-white/10 flex items-center gap-3 text-sm text-gray-400 border-r-2 border-transparent transition-colors" data-target="system"><i data-lucide="monitor" class="w-4 h-4"></i> System</button>
+                        <button class="set-tab p-3 text-left hover:bg-white/10 flex items-center gap-3 text-sm text-gray-400 border-r-2 border-transparent transition-colors" data-target="about"><i data-lucide="info" class="w-4 h-4"></i> About</button>
+                    </div>
+                    <div class="flex-1 p-6 overflow-y-auto custom-scrollbar relative bg-[#1e1e1e]">
+                        <!-- Appearance -->
+                        <div id="set-appearance" class="set-pane">
+                            <h2 class="text-2xl font-bold mb-6">Appearance</h2>
+                            <div class="mb-8">
+                                <label class="block mb-3 text-sm text-gray-400 font-bold uppercase tracking-wider">Theme Mode</label>
+                                <div class="flex gap-3">
+                                    <button class="flex-1 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg flex flex-col items-center gap-2 transition" onclick="applyTheme('dark')">
+                                        <div class="w-8 h-8 bg-black rounded-full border border-gray-600"></div> Dark
+                                    </button>
+                                    <button class="flex-1 py-3 bg-gray-200 hover:bg-white text-black border border-gray-300 rounded-lg flex flex-col items-center gap-2 transition" onclick="applyTheme('light')">
+                                        <div class="w-8 h-8 bg-white rounded-full border border-gray-300 shadow"></div> Light
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block mb-3 text-sm text-gray-400 font-bold uppercase tracking-wider">Desktop Wallpaper</label>
+                                <div class="grid grid-cols-2 gap-3 mb-4" id="wp-presets">
+                                    <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-blue-500 transition shadow-md preset-wp" title="Nexus Space">
+                                    <img src="https://images.unsplash.com/photo-1605806616949-1e87b487cb2a?q=80&w=2000&auto=format&fit=crop" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-blue-500 transition shadow-md preset-wp" title="Cyberpunk">
+                                    <img src="https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2000&auto=format&fit=crop" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-blue-500 transition shadow-md preset-wp" title="Abstract Colors">
+                                    <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2000&auto=format&fit=crop" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-blue-500 transition shadow-md preset-wp" title="Minimal Dark">
+                                </div>
+                                <button class="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center justify-center gap-2 transition font-medium text-white shadow-lg shadow-blue-600/30" id="upload-wp-btn"><i data-lucide="upload" class="w-4 h-4"></i> Upload Custom Wallpaper</button>
+                                <input type="file" id="custom-wp-input" accept="image/*" class="hidden">
+                                <p class="text-xs text-gray-500 mt-3 text-center">Note: Images larger than 3MB may fail to save across reboots due to browser quotas.</p>
+                            </div>
+                        </div>
+                        <!-- System -->
+                        <div id="set-system" class="set-pane hidden">
+                            <h2 class="text-2xl font-bold mb-6">System settings</h2>
+                            <div class="space-y-3">
+                                <button class="w-full text-left px-4 py-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg flex justify-between items-center transition group" onclick="window.startSystemUpdate()">
+                                    <div>
+                                        <div class="font-bold text-white">Check for Updates</div>
+                                        <div class="text-xs text-gray-400 mt-1">Keep Nexus OS running the latest version.</div>
+                                    </div>
+                                    <i data-lucide="download-cloud" class="w-5 h-5 text-blue-400 group-hover:scale-110 transition"></i>
+                                </button>
+                                <div class="w-full text-left px-4 py-4 bg-gray-800 border border-gray-700 rounded-lg flex justify-between items-center">
+                                    <div>
+                                        <div class="font-bold text-white">Storage Usage</div>
+                                        <div class="text-xs text-gray-400 mt-1" id="storage-info">Calculating...</div>
+                                    </div>
+                                    <i data-lucide="hard-drive" class="w-5 h-5 text-gray-400"></i>
+                                </div>
+                                <button class="w-full text-left px-4 py-4 bg-red-900/20 hover:bg-red-900/40 border border-red-900/50 text-red-200 rounded-lg flex justify-between items-center transition group mt-8" onclick="if(confirm('WARNING: This will delete all installed apps, files, and settings. Are you sure?')) { localStorage.clear(); location.reload(); }">
+                                    <div>
+                                        <div class="font-bold text-red-400">Factory Reset</div>
+                                        <div class="text-xs text-red-400/70 mt-1">Wipe all local OS data.</div>
+                                    </div>
+                                    <i data-lucide="alert-triangle" class="w-5 h-5 text-red-500 group-hover:scale-110 transition"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- About -->
+                        <div id="set-about" class="set-pane hidden">
+                            <div class="flex flex-col items-center justify-center py-10 text-center">
+                                <div class="w-24 h-24 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.3)] mb-6 relative overflow-hidden">
+                                    <div class="absolute inset-0 bg-white/20 blur-xl rounded-full"></div>
+                                    <i data-lucide="zap" class="w-12 h-12 text-white relative z-10"></i>
+                                </div>
+                                <h2 class="text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2">NEXUS OS</h2>
+                                <div class="text-gray-400 font-mono text-sm bg-gray-800 px-3 py-1 rounded-full border border-gray-700 mb-8 shadow-inner">Version <span id="settings-version-display">4.3</span> (Stable)</div>
+                                <p class="text-sm text-gray-400 max-w-xs leading-relaxed mb-8">A cloud-native web environment designed to run seamlessly in modern browsers.</p>
+                                <div class="flex gap-4">
+                                    <button class="text-blue-400 hover:text-blue-300 hover:underline text-sm transition">Documentation</button>
+                                    <button class="text-blue-400 hover:text-blue-300 hover:underline text-sm transition" onclick="window.startSystemUpdate()">Release Notes</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`,
+                init: (id, root) => {
+                    // Tab switching logic
+                    const tabs = root.querySelectorAll('.set-tab');
+                    const panes = root.querySelectorAll('.set-pane');
+                    tabs.forEach(tab => {
+                        tab.onclick = () => {
+                            tabs.forEach(t => {
+                                t.classList.remove('bg-blue-600/20', 'text-blue-400', 'border-blue-500');
+                                t.classList.add('text-gray-400', 'border-transparent');
+                            });
+                            tab.classList.add('bg-blue-600/20', 'text-blue-400', 'border-blue-500');
+                            tab.classList.remove('text-gray-400', 'border-transparent');
+                            
+                            panes.forEach(p => p.classList.add('hidden'));
+                            root.querySelector('#set-' + tab.dataset.target).classList.remove('hidden');
+
+                            if (tab.dataset.target === 'system') {
+                                // Calculate approximate storage used by LocalStorage
+                                let total = 0;
+                                for(let x in localStorage) { if(localStorage.hasOwnProperty(x)) total += ((localStorage[x].length + x.length) * 2); }
+                                const kb = (total / 1024).toFixed(2);
+                                const mb = (kb / 1024).toFixed(2);
+                                root.querySelector('#storage-info').innerText = mb > 1 ? mb + ' MB used' : kb + ' KB used';
+                            }
+                        };
+                    });
+
+                    // Preset Wallpapers
+                    root.querySelectorAll('.preset-wp').forEach(img => {
+                        img.onclick = () => window.setWallpaper(img.src);
+                    });
+
+                    // Custom Wallpaper Upload via File Reader
+                    const wpBtn = root.querySelector('#upload-wp-btn');
+                    const wpInput = root.querySelector('#custom-wp-input');
+                    wpBtn.onclick = () => wpInput.click();
+                    wpInput.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        if (file.size > 3 * 1024 * 1024) {
+                            alert("Warning: This image is larger than 3MB. Browsers strictly limit localStorage size. It will apply now, but may fail to save permanently across reboots.");
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            try {
+                                window.setWallpaper(ev.target.result);
+                            } catch (err) {
+                                alert("Failed to save wallpaper persistently. The image file is likely too large for browser storage limit. Try using a smaller image.");
+                                document.body.style.backgroundImage = `url('${ev.target.result}')`; // Apply it temporarily anyway for this session
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = ''; // Reset input
+                    };
+
+                    // Set version text to match target
+                    const verDisplay = root.querySelector('#settings-version-display');
+                    if (verDisplay && typeof TARGET_VERSION !== 'undefined') verDisplay.innerText = TARGET_VERSION;
+                }
+            },
             welcome: { title: 'Welcome', icon: 'info', color: 'text-purple-400', render: () => `<div class="h-full bg-gradient-to-br from-gray-900 to-blue-900 text-white p-8 flex flex-col items-center justify-center text-center"><h1 class="text-3xl font-bold mb-2">Nexus OS 4.0</h1><p class="mb-4">Now with Workspaces & Realtime Community!</p><button onclick="closeWindow(this.closest('.window').id)" class="px-6 py-2 bg-blue-500 rounded">Start</button></div>` },
             music: { 
                 title: 'Nexus Music', icon: 'music', color: 'text-[#1db954]', 
@@ -1190,7 +1352,7 @@
         document.getElementById('login-pass').addEventListener('keydown', (e) => { if(e.key === 'Enter') attemptLogin(); });
 
         const bootText = document.getElementById('boot-text');
-        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.2...", "[ OK ] Mounting Filesystem...", "Starting Desktop..."];
+        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.3...", "[ OK ] Mounting Filesystem...", "Starting Desktop..."];
         let bi = 0;
         function runBoot() {
             if(bi < bootLines.length) { const d = document.createElement('div'); d.innerHTML = bootLines[bi].includes("OK") ? `<span class="text-green-500 font-bold">[ OK ]</span> ${bootLines[bi].replace("[ OK ] ", "")}` : bootLines[bi]; bootText.appendChild(d); bi++; setTimeout(runBoot, 150); } 
