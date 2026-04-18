@@ -152,7 +152,7 @@
     <!-- Update Screen -->
     <div id="update-screen" class="absolute inset-0 bg-black flex flex-col justify-center items-center terminal-font text-white hidden">
         <i data-lucide="refresh-cw" class="w-16 h-16 animate-spin text-blue-500 mb-6"></i>
-        <h2 class="text-2xl font-bold mb-2">Updating Nexus OS to v4.1</h2>
+        <h2 class="text-2xl font-bold mb-2">Updating Nexus OS to v4.2</h2>
         <p id="update-text" class="text-gray-400 text-sm">Initializing...</p>
         <div class="w-64 h-1 bg-gray-800 rounded mt-4 overflow-hidden"><div id="update-bar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div></div>
     </div>
@@ -200,7 +200,7 @@
             <button onclick="attemptLogin()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded transition-colors"><i data-lucide="arrow-right" class="w-5 h-5"></i></button>
         </div>
         <p id="login-msg" class="text-red-400 text-sm mt-4 h-5"></p>
-        <div class="absolute bottom-10 text-gray-400 text-xs" id="version-display">Nexus OS v4.1</div>
+        <div class="absolute bottom-10 text-gray-400 text-xs" id="version-display">Nexus OS v4.2</div>
     </div>
 
     <!-- Desktop Area -->
@@ -279,7 +279,7 @@
         let currentUser = null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'gemini-os-default';
 
-        const TARGET_VERSION = "4.1"; 
+        const TARGET_VERSION = "4.2"; 
         let installedVersion = localStorage.getItem('gemini_os_version') || "3.0";
         let userWallpaper = localStorage.getItem('gemini_os_wallpaper') || null;
         let userData = JSON.parse(localStorage.getItem('gemini_os_user_data'));
@@ -1190,7 +1190,7 @@
         document.getElementById('login-pass').addEventListener('keydown', (e) => { if(e.key === 'Enter') attemptLogin(); });
 
         const bootText = document.getElementById('boot-text');
-        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.1...", "[ OK ] Mounting Filesystem...", "Starting Desktop..."];
+        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.2...", "[ OK ] Mounting Filesystem...", "Starting Desktop..."];
         let bi = 0;
         function runBoot() {
             if(bi < bootLines.length) { const d = document.createElement('div'); d.innerHTML = bootLines[bi].includes("OK") ? `<span class="text-green-500 font-bold">[ OK ]</span> ${bootLines[bi].replace("[ OK ] ", "")}` : bootLines[bi]; bootText.appendChild(d); bi++; setTimeout(runBoot, 150); } 
