@@ -90,6 +90,32 @@
     <!-- Snap Preview Overlay -->
     <div id="snap-preview" class="absolute bg-white/20 border-2 border-white/50 rounded-lg pointer-events-none opacity-0 transition-all z-[8000]"></div>
 
+    <!-- Audio Element -->
+    <audio id="system-audio" src=""></audio>
+
+    <!-- Media Widget -->
+    <div id="media-widget" class="absolute bottom-14 right-4 w-72 bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-lg shadow-2xl p-4 hidden opacity-0 transition-opacity duration-200 transform origin-bottom-right z-[5000]">
+        <div class="flex gap-4 items-center">
+            <div class="w-12 h-12 bg-gray-800 rounded-md flex items-center justify-center overflow-hidden shrink-0">
+                <i data-lucide="music" class="w-6 h-6 text-indigo-400"></i>
+            </div>
+            <div class="flex-1 overflow-hidden">
+                <div class="font-bold text-sm text-white truncate" id="media-title">No Media Playing</div>
+                <div class="text-xs text-gray-400 truncate" id="media-artist">Unknown Artist</div>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center gap-2 text-xs text-gray-400">
+            <span id="media-time" class="w-8 text-right">0:00</span>
+            <input type="range" id="media-progress" class="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" value="0" min="0" max="100">
+            <span id="media-duration" class="w-8">0:00</span>
+        </div>
+        <div class="mt-4 flex justify-center items-center gap-6">
+            <button class="text-gray-400 hover:text-white transition" onclick="mediaManager.prev()"><i data-lucide="skip-back" class="w-5 h-5"></i></button>
+            <button class="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:bg-gray-200 transition" onclick="mediaManager.togglePlay()" id="media-play-btn"><i data-lucide="play" class="w-5 h-5 ml-1"></i></button>
+            <button class="text-gray-400 hover:text-white transition" onclick="mediaManager.next()"><i data-lucide="skip-forward" class="w-5 h-5"></i></button>
+        </div>
+    </div>
+
     <!-- Calendar Widget -->
     <div id="calendar-widget" class="absolute bottom-14 right-4 w-72 bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-lg shadow-2xl p-4 hidden opacity-0 transition-opacity duration-200 transform origin-bottom-right">
         <div class="flex justify-between items-center mb-4">
@@ -211,6 +237,7 @@
             <div id="taskbar-apps" class="flex items-center gap-1"></div>
         </div>
         <div class="flex items-center gap-4 text-xs font-medium text-gray-300">
+            <button id="media-taskbar-btn" class="hidden px-2 py-1 hover:bg-white/10 rounded cursor-pointer transition-colors" onclick="toggleMediaWidget()"><i data-lucide="music" class="w-4 h-4 text-indigo-400"></i></button>
             <div class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/10 transition-colors cursor-default">
                 <i data-lucide="wifi" class="w-4 h-4"></i>
                 <div id="battery-container" class="flex items-center gap-1">
@@ -311,6 +338,83 @@
             else { cal.classList.add('opacity-0'); setTimeout(() => cal.classList.add('hidden'), 200); }
         };
 
+        window.toggleMediaWidget = () => {
+            const w = document.getElementById('media-widget');
+            if(w.classList.contains('hidden')) { w.classList.remove('hidden'); setTimeout(()=>w.classList.remove('opacity-0'), 10); }
+            else { w.classList.add('opacity-0'); setTimeout(()=>w.classList.add('hidden'), 200); }
+        };
+
+        const mediaManager = {
+            audio: null,
+            playlist: [
+                { title: "Lofi Study", artist: "FASSounds", url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" },
+                { title: "Chill Abstract", artist: "Coma-Media", url: "https://cdn.pixabay.com/download/audio/2022/11/03/audio_73e72648fb.mp3" },
+                { title: "Good Night", artist: "FASSounds", url: "https://cdn.pixabay.com/download/audio/2022/10/25/audio_517a61d155.mp3" }
+            ],
+            currentIndex: -1,
+            init: () => {
+                mediaManager.audio = document.getElementById('system-audio');
+                mediaManager.audio.addEventListener('timeupdate', mediaManager.updateProgress);
+                mediaManager.audio.addEventListener('ended', mediaManager.next);
+                mediaManager.audio.addEventListener('play', () => {
+                    const btn = document.getElementById('media-play-btn');
+                    btn.innerHTML = '<i data-lucide="pause" class="w-5 h-5"></i>';
+                    lucide.createIcons({root: btn});
+                    document.getElementById('media-taskbar-btn').classList.remove('hidden');
+                });
+                mediaManager.audio.addEventListener('pause', () => {
+                    const btn = document.getElementById('media-play-btn');
+                    btn.innerHTML = '<i data-lucide="play" class="w-5 h-5 ml-1"></i>';
+                    lucide.createIcons({root: btn});
+                });
+                document.getElementById('media-progress').addEventListener('input', (e) => {
+                    if(mediaManager.audio.duration) mediaManager.audio.currentTime = (e.target.value / 100) * mediaManager.audio.duration;
+                });
+            },
+            playTrack: (index) => {
+                if (index < 0 || index >= mediaManager.playlist.length) return;
+                mediaManager.currentIndex = index;
+                const track = mediaManager.playlist[index];
+                mediaManager.audio.src = track.url;
+                mediaManager.audio.play();
+                document.getElementById('media-title').innerText = track.title;
+                document.getElementById('media-artist').innerText = track.artist;
+                document.getElementById('media-taskbar-btn').classList.remove('hidden');
+            },
+            togglePlay: () => {
+                if(mediaManager.currentIndex === -1) mediaManager.playTrack(0);
+                else if(mediaManager.audio.paused) mediaManager.audio.play();
+                else mediaManager.audio.pause();
+            },
+            next: () => {
+                let nextIdx = mediaManager.currentIndex + 1;
+                if(nextIdx >= mediaManager.playlist.length) nextIdx = 0;
+                mediaManager.playTrack(nextIdx);
+            },
+            prev: () => {
+                let prevIdx = mediaManager.currentIndex - 1;
+                if(prevIdx < 0) prevIdx = mediaManager.playlist.length - 1;
+                mediaManager.playTrack(prevIdx);
+            },
+            formatTime: (sec) => {
+                if (isNaN(sec)) return "0:00";
+                const m = Math.floor(sec / 60);
+                const s = Math.floor(sec % 60);
+                return `${m}:${s.toString().padStart(2, '0')}`;
+            },
+            updateProgress: () => {
+                const prog = document.getElementById('media-progress');
+                const t = mediaManager.audio.currentTime;
+                const d = mediaManager.audio.duration;
+                if (d) {
+                    prog.value = (t / d) * 100;
+                    document.getElementById('media-time').innerText = mediaManager.formatTime(t);
+                    document.getElementById('media-duration').innerText = mediaManager.formatTime(d);
+                }
+            }
+        };
+        window.mediaManager = mediaManager;
+
         function renderCalendar() {
             const date = new Date(); const year = date.getFullYear(); const month = date.getMonth();
             const calMonth = document.getElementById('cal-month'); const calYear = document.getElementById('cal-year');
@@ -337,6 +441,7 @@
                 "My Apps": { type: 'link', action: "openApp('appManager')", icon: 'package', color: 'text-yellow-400' },
                 "Paint": { type: 'link', action: "openApp('paint')", icon: 'brush', color: 'text-pink-400' },
                 "Calculator": { type: 'link', action: "openApp('calculator')", icon: 'calculator', color: 'text-gray-200' },
+                "Music": { type: 'link', action: "openApp('music')", icon: 'music', color: 'text-indigo-400' },
                 "Chrome": { type: 'link', action: "openApp('browser', 'home')", icon: 'chrome', color: 'text-blue-500', img: svgChrome }
             }},
             apps: { type: 'dir', children: {} },
@@ -416,7 +521,23 @@
 
             terminal: { title: 'Terminal', icon: 'terminal-square', color: 'text-gray-300', render: () => `<div class="h-full bg-[#1e1e1e] text-gray-300 p-2 terminal-font text-sm overflow-y-auto" onclick="this.querySelector('input').focus()"><div class="term-out"></div><div class="flex"><span class="text-green-400">user@nexus</span>:<span class="text-blue-400">~</span>$&nbsp;<input class="bg-transparent border-none outline-none flex-1 text-gray-200" autofocus></div></div>`, init: (id, root) => { const out = root.querySelector('.term-out'); const inp = root.querySelector('input'); const print = (t) => { const d=document.createElement('div'); d.innerHTML=t; out.appendChild(d); }; print("Nexus OS v4.0"); inp.onkeydown = (e) => { if(e.key === 'Enter') { const val = inp.value.trim(); print(`<span class="text-green-400">user</span>$ ${val}`); if(val==='clear')out.innerHTML=''; else if(val==='ls')print("Desktop Documents"); else if(val==='reboot')location.reload(); else if(val)print("Command not found."); inp.value=''; root.firstElementChild.scrollTop=root.firstElementChild.scrollHeight; } }; } },
             settings: { title: 'Settings', icon: 'settings', color: 'text-gray-400', render: () => `<div class="p-6 bg-[#2d2d2d] h-full text-gray-200"><h2 class="text-xl font-bold mb-4">Settings</h2><div class="mb-4"><label class="block mb-2">Theme</label><div class="flex gap-2"><button onclick="applyTheme('dark')" class="px-3 py-1 bg-gray-700 rounded">Dark</button><button onclick="applyTheme('light')" class="px-3 py-1 bg-white text-black rounded">Light</button></div></div><div class="mt-4"><button class="text-blue-400 hover:underline block" onclick="window.startSystemUpdate()">Check Updates</button><button class="text-red-400 hover:underline block mt-4 text-sm" onclick="if(confirm('Wipe all OS data and reset to factory defaults?')) { localStorage.clear(); location.reload(); }">Reset All OS Data</button></div></div>` },
-            welcome: { title: 'Welcome', icon: 'info', color: 'text-purple-400', render: () => `<div class="h-full bg-gradient-to-br from-gray-900 to-blue-900 text-white p-8 flex flex-col items-center justify-center text-center"><h1 class="text-3xl font-bold mb-2">Nexus OS 4.0</h1><p class="mb-4">Now with Workspaces & Realtime Community!</p><button onclick="closeWindow(this.closest('.window').id)" class="px-6 py-2 bg-blue-500 rounded">Start</button></div>` }
+            welcome: { title: 'Welcome', icon: 'info', color: 'text-purple-400', render: () => `<div class="h-full bg-gradient-to-br from-gray-900 to-blue-900 text-white p-8 flex flex-col items-center justify-center text-center"><h1 class="text-3xl font-bold mb-2">Nexus OS 4.0</h1><p class="mb-4">Now with Workspaces & Realtime Community!</p><button onclick="closeWindow(this.closest('.window').id)" class="px-6 py-2 bg-blue-500 rounded">Start</button></div>` },
+            music: { 
+                title: 'Music Player', icon: 'music', color: 'text-indigo-400', 
+                width: '350px', height: '450px',
+                render: () => `<div class="h-full bg-gray-900 flex flex-col p-2 text-white"><div class="px-4 py-3 font-bold text-lg border-b border-gray-800 flex items-center gap-2"><i data-lucide="headphones" class="w-5 h-5 text-indigo-400"></i> Library</div><div class="flex-1 overflow-y-auto" id="music-playlist"></div></div>`,
+                init: (id, root) => {
+                    const pl = root.querySelector('#music-playlist');
+                    mediaManager.playlist.forEach((track, i) => {
+                        const item = document.createElement('div');
+                        item.className = "flex items-center justify-between p-3 border-b border-gray-800 hover:bg-white/5 cursor-pointer transition";
+                        item.innerHTML = `<div class="flex items-center gap-3"><div class="w-10 h-10 bg-gray-800 rounded flex items-center justify-center"><i data-lucide="music" class="w-5 h-5 text-gray-400"></i></div><div><div class="font-bold text-sm ${mediaManager.currentIndex === i ? 'text-indigo-400' : ''}">${track.title}</div><div class="text-xs text-gray-500">${track.artist}</div></div></div><button class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0"><i data-lucide="play" class="w-4 h-4 ml-0.5"></i></button>`;
+                        item.onclick = () => { mediaManager.playTrack(i); Array.from(pl.children).forEach(c=>c.querySelector('.font-bold').classList.remove('text-indigo-400')); item.querySelector('.font-bold').classList.add('text-indigo-400'); lucide.createIcons({root:pl}); };
+                        pl.appendChild(item);
+                    });
+                    lucide.createIcons({root});
+                }
+            }
         };
 
         let zIndex = 100;
@@ -855,6 +976,7 @@
         }
 
         window.onload = () => {
+            mediaManager.init();
             lucide.createIcons(); populateMenu(); renderDesktop(); runBoot(); initBattery();
             setInterval(() => {
                 const el = document.getElementById('clock-btn') || document.getElementById('clock');
