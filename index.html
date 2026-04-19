@@ -306,33 +306,43 @@
                 const appData = event.data.appData || event.data;
                 console.log("Nexus OS Background Install triggered!", appData);
                 
-                // Support both .content and .code depending on how the store sends it
+                // Support both .content/.code for local apps, and .url/.link for external web apps
                 const appContent = appData.content || appData.code;
+                const appUrl = appData.url || appData.link;
                 const appName = appData.title || appData.name || 'New App';
 
-                if (appData && appContent) {
-                    const path = `/home/user/apps/${appName}.html`;
-                    
-                    if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
-                    fs.createPath(path, 'file', appContent);
-                    
-                    fs.getPath('/home/user/Desktop').children[appName] = { 
-                        type: 'link', 
-                        action: `openApp('runner', '${path}')`, 
-                        icon: appData.icon || 'box', 
-                        color: 'text-green-400' 
-                    };
+                if (appData && (appContent || appUrl)) {
+                    if (appContent) {
+                        // Local HTML App
+                        const path = `/home/user/apps/${appName}.html`;
+                        if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
+                        fs.createPath(path, 'file', appContent);
+                        
+                        fs.getPath('/home/user/Desktop').children[appName] = { 
+                            type: 'link', 
+                            action: `openApp('runner', '${path}')`, 
+                            icon: appData.icon || 'box', 
+                            color: 'text-green-400' 
+                        };
+                        window.openApp('runner', path); 
+                    } else if (appUrl) {
+                        // External Web App Link
+                        fs.getPath('/home/user/Desktop').children[appName] = { 
+                            type: 'link', 
+                            action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${appUrl}' })`, 
+                            icon: appData.icon || 'globe', 
+                            color: 'text-blue-400' 
+                        };
+                        window.openApp('runner', { name: appName, url: appUrl });
+                    }
                     
                     saveFS();
                     renderDesktop();
                     
-                    // Make it pop up immediately!
-                    window.openApp('runner', path); 
-                    
                     // Optional notification alongside the alert
                     window.notify("App Installed", `${appName} added to desktop!`);
                 } else {
-                    console.error("Install failed: Missing app content in payload", appData);
+                    console.error("Install failed: Missing app content or url in payload", appData);
                 }
 
                 // Show alert without blocking the UI thread immediately
@@ -349,17 +359,23 @@
             if (installAppStr) {
                 const appData = JSON.parse(decodeURIComponent(escape(atob(installAppStr))));
                 console.log("App to install:", appData);
-                const { name, content, icon } = appData;
-                if (name && content) {
-                    const path = `/home/user/apps/${name}.html`;
-                    if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
-                    fs.createPath(path, 'file', content);
-                    fs.getPath('/home/user/Desktop').children[name] = { type: 'link', action: `openApp('runner', '${path}')`, icon: icon || 'box', color: 'text-green-400' };
+                const { name, content, url, icon } = appData;
+                const appName = name || appData.title || 'New App';
+                
+                if (appName && (content || url)) {
+                    if (content) {
+                        const path = `/home/user/apps/${appName}.html`;
+                        if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
+                        fs.createPath(path, 'file', content);
+                        fs.getPath('/home/user/Desktop').children[appName] = { type: 'link', action: `openApp('runner', '${path}')`, icon: icon || 'box', color: 'text-green-400' };
+                    } else if (url) {
+                        fs.getPath('/home/user/Desktop').children[appName] = { type: 'link', action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${url}' })`, icon: icon || 'globe', color: 'text-blue-400' };
+                    }
                     saveFS();
                     
                     // Delay notification slightly so it shows up after the boot screen finishes
                     setTimeout(() => {
-                        window.notify("App Installed", `${name} was installed from URL!`);
+                        window.notify("App Installed", `${appName} was installed from URL!`);
                         if (typeof renderDesktop === 'function') renderDesktop();
                     }, 2000);
                     
@@ -622,7 +638,8 @@
                 "Paint": { type: 'link', action: "openApp('paint')", icon: 'brush', color: 'text-pink-400' },
                 "Calculator": { type: 'link', action: "openApp('calculator')", icon: 'calculator', color: 'text-gray-200' },
                 "Music": { type: 'link', action: "openApp('music')", icon: 'music', color: 'text-indigo-400' },
-                "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus }
+                "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus },
+                "Web Search": { type: 'link', action: "openApp('runner', { name: 'Google Search', url: 'https://www.google.com/webhp?igu=1' })", icon: 'search', color: 'text-blue-400' }
             }},
             apps: { type: 'dir', children: {} },
             Documents: { type: 'dir', children: { "hello_world.html": { type: 'file', content: "<h1 style='color:blue'>Hello World</h1><p>Run me!</p>" } }},
