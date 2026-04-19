@@ -306,14 +306,17 @@
                 const appData = event.data.appData || event.data;
                 console.log("Nexus OS Background Install triggered!", appData);
                 
-                // Support both .content/.code for local apps, and .url/.link for external web apps
                 const appContent = appData.content || appData.code;
                 const appUrl = appData.url || appData.link;
                 const appName = appData.title || appData.name || 'New App';
+                
+                // Smart icon detection: Is it an image URL or a Lucide icon string?
+                const passedIcon = appData.icon || '';
+                const isImageUrl = passedIcon.startsWith('http') || passedIcon.startsWith('data:');
 
+                // Write your logic to save the app to the Nexus OS filesystem here!
                 if (appData && (appContent || appUrl)) {
                     if (appContent) {
-                        // Local HTML App
                         const path = `/home/user/apps/${appName}.html`;
                         if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
                         fs.createPath(path, 'file', appContent);
@@ -321,34 +324,27 @@
                         fs.getPath('/home/user/Desktop').children[appName] = { 
                             type: 'link', 
                             action: `openApp('runner', '${path}')`, 
-                            icon: appData.icon || 'box', 
+                            icon: isImageUrl ? undefined : (passedIcon || 'box'), 
+                            img: isImageUrl ? passedIcon : undefined,
                             color: 'text-green-400' 
                         };
-                        window.openApp('runner', path); 
+                        window.openApp('runner', path); // Make it pop up immediately!
                     } else if (appUrl) {
-                        // External Web App Link
                         fs.getPath('/home/user/Desktop').children[appName] = { 
                             type: 'link', 
                             action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${appUrl}' })`, 
-                            icon: appData.icon || 'globe', 
+                            icon: isImageUrl ? undefined : (passedIcon || 'globe'), 
+                            img: isImageUrl ? passedIcon : undefined,
                             color: 'text-blue-400' 
                         };
-                        window.openApp('runner', { name: appName, url: appUrl });
+                        window.openApp('runner', { name: appName, url: appUrl }); // Make it pop up immediately!
                     }
                     
                     saveFS();
                     renderDesktop();
-                    
-                    // Optional notification alongside the alert
-                    window.notify("App Installed", `${appName} added to desktop!`);
-                } else {
-                    console.error("Install failed: Missing app content or url in payload", appData);
                 }
 
-                // Show alert without blocking the UI thread immediately
-                setTimeout(() => {
-                    alert(`Successfully downloaded ${appName} from NexusStore!`);
-                }, 100);
+                alert(`Successfully downloaded ${appName} from NexusStore!`);
             }
         });
 
@@ -362,14 +358,30 @@
                 const { name, content, url, icon } = appData;
                 const appName = name || appData.title || 'New App';
                 
+                // Smart icon detection for URL installs
+                const passedIcon = icon || '';
+                const isImageUrl = passedIcon.startsWith('http') || passedIcon.startsWith('data:');
+                
                 if (appName && (content || url)) {
                     if (content) {
                         const path = `/home/user/apps/${appName}.html`;
                         if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
                         fs.createPath(path, 'file', content);
-                        fs.getPath('/home/user/Desktop').children[appName] = { type: 'link', action: `openApp('runner', '${path}')`, icon: icon || 'box', color: 'text-green-400' };
+                        fs.getPath('/home/user/Desktop').children[appName] = { 
+                            type: 'link', 
+                            action: `openApp('runner', '${path}')`, 
+                            icon: isImageUrl ? undefined : (passedIcon || 'box'), 
+                            img: isImageUrl ? passedIcon : undefined,
+                            color: 'text-green-400' 
+                        };
                     } else if (url) {
-                        fs.getPath('/home/user/Desktop').children[appName] = { type: 'link', action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${url}' })`, icon: icon || 'globe', color: 'text-blue-400' };
+                        fs.getPath('/home/user/Desktop').children[appName] = { 
+                            type: 'link', 
+                            action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${url}' })`, 
+                            icon: isImageUrl ? undefined : (passedIcon || 'globe'), 
+                            img: isImageUrl ? passedIcon : undefined,
+                            color: 'text-blue-400' 
+                        };
                     }
                     saveFS();
                     
