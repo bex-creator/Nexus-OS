@@ -87,6 +87,13 @@
     <input type="file" id="app-uploader" accept=".html" class="hidden">
     <input type="file" id="wp-uploader" accept="image/*" class="hidden">
 
+    <!-- Global Drag-and-Drop Overlay -->
+    <div id="drop-overlay" class="absolute inset-0 bg-blue-500/20 border-4 border-blue-500 border-dashed z-[9999] hidden flex items-center justify-center pointer-events-none backdrop-blur-sm transition-all duration-200">
+        <div class="bg-black/80 text-white px-8 py-6 rounded-2xl font-bold text-2xl flex items-center gap-4 shadow-2xl scale-110">
+            <i data-lucide="download-cloud" class="w-10 h-10 text-blue-400"></i> Drop files to upload to Desktop
+        </div>
+    </div>
+
     <!-- Snap Preview Overlay -->
     <div id="snap-preview" class="absolute bg-white/20 border-2 border-white/50 rounded-lg pointer-events-none opacity-0 transition-all z-[8000]"></div>
 
@@ -238,6 +245,9 @@
 
     <!-- Main Context Menu -->
     <div id="context-menu" class="absolute bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-2xl w-48 py-1 hidden z-[9999] text-sm">
+        <button onclick="window.createNewFolder(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="folder-plus" class="w-4 h-4 text-yellow-500"></i> New Folder</button>
+        <button onclick="window.createNewFile(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="file-plus" class="w-4 h-4 text-blue-400"></i> New File</button>
+        <div class="h-px bg-gray-700 my-1"></div>
         <button onclick="document.getElementById('app-uploader').click(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="download" class="w-4 h-4 text-green-400"></i> Install App (.html)</button>
         <button onclick="openApp('paint'); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="brush" class="w-4 h-4 text-purple-400"></i> Open Paint</button>
         <button onclick="openApp('settings'); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="image" class="w-4 h-4 text-blue-400"></i> Change Wallpaper</button>
@@ -346,6 +356,92 @@
             area.appendChild(el);
             if(duration > 0) setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, duration);
         };
+
+        // File/Folder Creation Helpers
+        window.createNewFolder = () => {
+            const name = prompt("Enter new folder name:", "New Folder");
+            if (name) {
+                if(!fs.getPath('/home/user/Desktop')) fs.createPath('/home/user/Desktop', 'dir');
+                fs.createPath(`/home/user/Desktop/${name}`, 'dir');
+                renderDesktop();
+            }
+        };
+
+        window.createNewFile = () => {
+            const name = prompt("Enter file name (e.g., notes.txt):", "new_file.txt");
+            if (name) {
+                if(!fs.getPath('/home/user/Desktop')) fs.createPath('/home/user/Desktop', 'dir');
+                fs.createPath(`/home/user/Desktop/${name}`, 'file', '');
+                renderDesktop();
+                openApp('editor', `/home/user/Desktop/${name}`);
+            }
+        };
+
+        // Global Drag and Drop Uploads
+        let dragCounter = 0;
+        document.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            document.getElementById('drop-overlay').classList.remove('hidden');
+        });
+        document.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) document.getElementById('drop-overlay').classList.add('hidden');
+        });
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            document.getElementById('drop-overlay').classList.add('hidden');
+            
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                let successCount = 0;
+                Array.from(e.dataTransfer.files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const isImage = file.type.startsWith('image/');
+                            const path = `/home/user/Desktop/${file.name}`;
+                            if(!fs.getPath('/home/user/Desktop')) fs.createPath('/home/user/Desktop', 'dir');
+                            
+                            fs.createPath(path, 'file', ev.target.result);
+                            
+                            // Attach generic media data if it's an image
+                            const node = fs.getPath(path);
+                            if (isImage && node) { node.img = ev.target.result; saveFS(); }
+                            
+                            successCount++;
+                            if (successCount === e.dataTransfer.files.length) {
+                                renderDesktop();
+                                window.notify("Upload Complete", `Saved ${successCount} file(s) to Desktop.`);
+                            }
+                        } catch(err) {
+                            alert(`Failed to save ${file.name}. File might be too large for browser storage limit.`);
+                        }
+                    };
+                    if(file.type.startsWith('text/') || file.name.endsWith('.html') || file.name.endsWith('.md')) {
+                        reader.readAsText(file);
+                    } else {
+                        reader.readAsDataURL(file); // Base64 encoding for media/other files
+                    }
+                });
+            }
+        });
+
+        // Global Keyboard Shortcuts
+        window.addEventListener('keydown', (e) => {
+            // Windows/Cmd key opens Start Menu
+            if (e.key === 'Meta') {
+                e.preventDefault();
+                document.getElementById('menu-btn').click();
+            }
+            // Escape closes menus
+            if (e.key === 'Escape') {
+                window.hideAllContextMenus();
+                document.getElementById('start-menu').classList.add('opacity-0', 'pointer-events-none');
+            }
+        });
 
         window.toggleQuickSettings = () => {
             const qs = document.getElementById('quick-settings');
@@ -878,8 +974,14 @@
                                 else if(data.type === 'link' && data.action) eval(data.action);
                                 else if(data.type === 'file') {
                                     // Open media correctly instead of as code
-                                    if (typeof data.content === 'string' && (data.content.startsWith('data:image/') || data.content.startsWith('data:audio/') || data.content.startsWith('data:video/'))) {
-                                        openApp('runner', { name: name, url: data.content });
+                                    if (typeof data.content === 'string') {
+                                        if (data.content.startsWith('data:video/')) {
+                                            openApp('videoPlayer', { name: name, url: data.content });
+                                        } else if (data.content.startsWith('data:image/') || data.content.startsWith('data:audio/')) {
+                                            openApp('runner', { name: name, url: data.content });
+                                        } else {
+                                            openApp('editor', p + '/' + name);
+                                        }
                                     } else {
                                         openApp('editor', p + '/' + name);
                                     }
@@ -997,6 +1099,23 @@
             },
             appManager: { title: 'My Apps', icon: 'package', color: 'text-yellow-400', render: () => `<div class="h-full bg-gray-900 text-white flex flex-col"><div class="p-6 border-b border-gray-800 bg-gray-900 flex justify-between items-center"><div><h1 class="text-2xl font-bold flex items-center gap-3"><i data-lucide="package" class="text-yellow-400"></i> My Apps</h1><p class="text-gray-400 text-sm mt-1">Manage local applications.</p></div><button onclick="document.getElementById('app-uploader').click()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm font-bold flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Import File</button></div><div class="app-list flex-1 overflow-y-auto p-6 grid grid-cols-1 gap-3"><div class="text-gray-500 italic">No apps installed.</div></div></div>`, init: (id, root) => { const list = root.querySelector('.app-list'); const appsDir = fs.getPath('/home/user/apps'); if(appsDir && appsDir.children) { list.innerHTML = ''; Object.entries(appsDir.children).forEach(([name, data]) => { const row = document.createElement('div'); row.className = "bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between items-center hover:border-yellow-500 transition-colors"; row.innerHTML = `<div class="flex items-center gap-3"><i data-lucide="box" class="text-orange-400"></i><span class="font-medium">${name}</span></div><div class="flex gap-2"><button class="px-3 py-1.5 bg-green-700 hover:bg-green-600 rounded text-xs share-btn" title="Upload to Community Store">Share</button><button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs run-btn">Run</button><button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs edit-btn">Edit</button><button class="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-200 rounded text-xs delete-btn">Delete</button></div>`; const path = `/home/user/apps/${name}`; row.querySelector('.run-btn').onclick = () => window.openApp('runner', path); row.querySelector('.edit-btn').onclick = () => window.openApp('editor', path); row.querySelector('.share-btn').onclick = async () => { if(!currentUser) { alert("Connecting..."); return; } const n = prompt("Name for Store:", name.replace('.html','')); if(!n) return; try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'apps'), { name: n, content: data.content, author: 'User', timestamp: serverTimestamp() }); alert("Shared!"); } catch(e) { alert(e.message); } }; row.querySelector('.delete-btn').onclick = () => { if(confirm("Delete?")) { fs.deletePath(path); row.remove(); } }; list.appendChild(row); }); lucide.createIcons({root: list}); } } },
             
+            videoPlayer: { 
+                title: 'Video Player', icon: 'video', color: 'text-purple-400', width: '640px', height: '400px', 
+                render: () => `<div class="h-full bg-black flex flex-col"><div class="bg-gray-900 p-1 flex justify-between items-center border-b border-gray-800 px-2 shrink-0"><span class="vid-title text-xs text-gray-400">Video</span></div><div class="flex-1 relative flex items-center justify-center"><video class="vid-element w-full h-full outline-none" controls autoplay></video></div></div>`, 
+                init: (id, root, arg) => { 
+                    const vid = root.querySelector('.vid-element'); 
+                    const title = root.querySelector('.vid-title'); 
+                    if (arg && typeof arg === 'object') { 
+                        title.innerText = arg.name || 'Video'; 
+                        if (arg.url) vid.src = arg.url; 
+                    } else if (typeof arg === 'string') { 
+                        title.innerText = arg.split('/').pop(); 
+                        const f = fs.getPath(arg); 
+                        if(f && f.content) vid.src = f.content; 
+                    } 
+                } 
+            },
+
             // UPDATED RUNNER: Use 'src' for URLs to support games like Idle Miner, 'srcdoc' for code
             runner: { 
                 title: 'App Runner', icon: 'play', color: 'text-orange-400', hidden: true, 
@@ -1578,12 +1697,31 @@
                     d.style.top = data.y + 'px';
                 }
                 
+                let icon = data.icon || 'file';
+                let color = data.color || 'text-gray-300';
+                if (!data.icon && data.type === 'file' && typeof data.content === 'string') {
+                    if (data.content.startsWith('data:video/')) { icon = 'video'; color = 'text-purple-400'; }
+                    else if (data.content.startsWith('data:image/')) { icon = 'image'; color = 'text-green-400'; }
+                    else if (data.content.startsWith('data:audio/')) { icon = 'music'; color = 'text-indigo-400'; }
+                }
+
                 const iconHtml = data.img 
-                    ? `<img src="${data.img}" class="w-10 h-10 drop-shadow-lg pointer-events-none rounded-xl" draggable="false">`
-                    : `<i data-lucide="${data.icon||'file'}" class="w-8 h-8 ${data.color||'text-gray-300'} pointer-events-none"></i>`;
+                    ? `<img src="${data.img}" class="w-10 h-10 drop-shadow-lg pointer-events-none rounded-xl object-cover" draggable="false">`
+                    : `<i data-lucide="${icon}" class="w-8 h-8 ${color} pointer-events-none"></i>`;
                     
                 d.innerHTML = `<div class="w-12 h-12 flex items-center justify-center pointer-events-none">${iconHtml}</div><span class="text-xs text-center bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded text-white shadow pointer-events-none w-full truncate">${name}</span>`;
                 c.appendChild(d);
+
+                const handleOpen = () => {
+                    if (data.action) eval(data.action);
+                    else if (data.type === 'file' && typeof data.content === 'string') {
+                        if (data.content.startsWith('data:video/')) openApp('videoPlayer', { name, url: data.content });
+                        else if (data.content.startsWith('data:image/') || data.content.startsWith('data:audio/')) openApp('runner', { name, url: data.content });
+                        else openApp('editor', `/home/user/Desktop/${name}`);
+                    } else {
+                        openApp('editor', `/home/user/Desktop/${name}`);
+                    }
+                };
 
                 d.oncontextmenu = (e) => {
                     e.preventDefault(); e.stopPropagation();
@@ -1592,7 +1730,7 @@
                     cm.style.left = e.clientX + 'px'; cm.style.top = e.clientY + 'px';
                     cm.classList.remove('hidden');
                     
-                    document.getElementById('icm-open').onclick = () => { eval(data.action || `openApp('editor', '/home/user/Desktop/${name}')`); cm.classList.add('hidden'); };
+                    document.getElementById('icm-open').onclick = () => { handleOpen(); cm.classList.add('hidden'); };
                     document.getElementById('icm-delete').onclick = () => { 
                         if(confirm(`Remove ${name} from desktop?`)) {
                             fs.deletePath(`/home/user/Desktop/${name}`);
@@ -1645,7 +1783,7 @@
                         d.style.zIndex = '';
                         
                         if (!isDragging) {
-                            eval(data.action || `openApp('editor', '/home/user/Desktop/${name}')`);
+                            handleOpen();
                         } else {
                             // Snap to Grid Logic
                             const gridX = 100; // Snap grid width
