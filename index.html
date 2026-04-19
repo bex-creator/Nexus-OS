@@ -299,32 +299,32 @@
             if(duration > 0) setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, duration);
         };
 
+        // Add this anywhere in your Nexus OS scripts
         window.addEventListener('message', (event) => {
-            // Make sure we only react to the correct message type
             if (event.data && event.data.type === 'NEXUS_OS_INSTALL_APP') {
                 const appData = event.data.appData;
+                console.log("Nexus OS Background Install triggered!", appData);
                 
-                console.log("Nexus OS received app to install:", appData);
-                
-                // Logic to save 'appData' to OS filesystem and create a desktop icon
-                if (!appData || !appData.content) return;
-                
-                const name = appData.title || appData.name || 'New App';
-                const path = `/home/user/apps/${name}.html`;
-                
-                if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
-                fs.createPath(path, 'file', appData.content);
-                
-                fs.getPath('/home/user/Desktop').children[name] = { 
-                    type: 'link', 
-                    action: `openApp('runner', '${path}')`, 
-                    icon: appData.icon || 'box', 
-                    color: 'text-green-400' 
-                };
-                
-                saveFS();
-                renderDesktop();
-                window.notify("App Installed", `${name} installed successfully!`);
+                // Write your logic to save the app to the Nexus OS filesystem here!
+                if (appData && appData.content) {
+                    const name = appData.title || appData.name || 'New App';
+                    const path = `/home/user/apps/${name}.html`;
+                    
+                    if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
+                    fs.createPath(path, 'file', appData.content);
+                    
+                    fs.getPath('/home/user/Desktop').children[name] = { 
+                        type: 'link', 
+                        action: `openApp('runner', '${path}')`, 
+                        icon: appData.icon || 'box', 
+                        color: 'text-green-400' 
+                    };
+                    
+                    saveFS();
+                    renderDesktop();
+                }
+
+                alert(`Successfully downloaded ${appData.title} from NexusStore!`);
             }
         });
 
