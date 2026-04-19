@@ -152,7 +152,7 @@
     <!-- Update Screen -->
     <div id="update-screen" class="absolute inset-0 bg-black flex flex-col justify-center items-center terminal-font text-white hidden">
         <i data-lucide="refresh-cw" class="w-16 h-16 animate-spin text-blue-500 mb-6"></i>
-        <h2 class="text-2xl font-bold mb-2">Updating Nexus OS to v4.3</h2>
+        <h2 class="text-2xl font-bold mb-2">Updating Nexus OS to v4.13</h2>
         <p id="update-text" class="text-gray-400 text-sm">Initializing...</p>
         <div class="w-64 h-1 bg-gray-800 rounded mt-4 overflow-hidden"><div id="update-bar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div></div>
     </div>
@@ -187,20 +187,20 @@
             <button onclick="finishSetup()" class="w-full mt-8 bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex justify-center items-center gap-2">
                 Get Started <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
-            <p id="setup-msg" class="text-red-400 text-sm mt-4 h-5"></p>
+            <p id="setup-msg" class="text-red-400 text-sm mt-4 h-5 text-center"></p>
         </div>
     </div>
 
     <!-- Login Screen -->
     <div id="login-screen" class="absolute inset-0 bg-black/60 backdrop-blur-xl flex flex-col justify-center items-center text-white hidden opacity-0 transition-opacity duration-500">
-        <div id="login-avatar" class="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-4xl font-bold mb-6 shadow-2xl">U</div>
+        <div id="login-avatar" class="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-4xl font-bold mb-6 shadow-2xl overflow-hidden">U</div>
         <h1 id="login-user-display" class="text-2xl font-bold mb-4">User</h1>
         <div class="flex gap-2">
             <input type="password" id="login-pass" class="bg-white/10 border border-white/20 rounded px-4 py-2 outline-none focus:border-blue-500 text-center w-48" placeholder="Password">
-            <button onclick="attemptLogin()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded transition-colors"><i data-lucide="arrow-right" class="w-5 h-5"></i></button>
+            <button onclick="attemptLogin()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded transition-colors flex items-center gap-2 font-bold shadow-lg shadow-blue-500/30"><i data-lucide="arrow-right" class="w-5 h-5"></i></button>
         </div>
         <p id="login-msg" class="text-red-400 text-sm mt-4 h-5"></p>
-        <div class="absolute bottom-10 text-gray-400 text-xs" id="version-display">Nexus OS v4.3</div>
+        <div class="absolute bottom-10 text-gray-400 text-xs" id="version-display">Nexus OS v4.13</div>
     </div>
 
     <!-- Desktop Area -->
@@ -263,10 +263,6 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         // Register Service Worker for Chrome PWA Installation
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -274,27 +270,15 @@
             });
         }
 
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        let app, auth, db;
-        let currentUser = null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gemini-os-default';
-
-        const TARGET_VERSION = "4.3"; 
+        const TARGET_VERSION = "4.13"; 
         let installedVersion = localStorage.getItem('gemini_os_version') || "3.0";
         let userWallpaper = localStorage.getItem('gemini_os_wallpaper') || null;
         let userData = JSON.parse(localStorage.getItem('gemini_os_user_data'));
         let currentWorkspace = 1;
+        
+        let db = null; // Stubs for offline gracefully failing features
 
         if (userWallpaper) document.body.style.backgroundImage = `url('${userWallpaper}')`;
-
-        if (firebaseConfig.apiKey) {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            const initAuth = async () => { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token); else await signInAnonymously(auth); };
-            initAuth();
-            onAuthStateChanged(auth, (user) => { currentUser = user; });
-        }
 
         // --- Global Helpers ---
         window.openApp = (appId, arg) => appManager.openApp(appId, arg);
@@ -557,7 +541,37 @@
                     const createTab = (url = 'home') => { const tId = 'tab-' + (++tabCounter); const tabBtn = document.createElement('div'); tabBtn.className = 'chrome-tab group flex items-center justify-between gap-2 px-3 py-1.5 text-cyan-700 hover:bg-cyan-900/30 rounded-t-md min-w-[140px] max-w-[220px] cursor-pointer border-t border-l border-r border-transparent relative shrink-0 transition-all mt-1'; tabBtn.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i data-lucide="zap" class="w-3 h-3 shrink-0 tab-icon"></i><span class="truncate text-xs tab-title">New Tab</span></div><button class="close-tab hover:bg-cyan-500/30 hover:text-cyan-200 text-cyan-600 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all shrink-0"><i data-lucide="x" class="w-3 h-3"></i></button>`; tabBar.insertBefore(tabBtn, newTabBtn); const contentDiv = document.createElement('div'); contentDiv.className = 'absolute inset-0 w-full h-full hidden bg-white'; const frame = document.createElement('iframe'); frame.className = 'w-full h-full border-none hidden bg-white'; frame.sandbox = 'allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts'; const mock = document.createElement('div'); mock.className = 'absolute inset-0 bg-[#0a0a0f] overflow-y-auto hidden'; contentDiv.appendChild(frame); contentDiv.appendChild(mock); contentContainer.appendChild(contentDiv); tabs[tId] = { btn: tabBtn, content: contentDiv, frame, mock, url: '', title: 'New Tab' }; tabBtn.onmousedown = (e) => { if(!e.target.closest('.close-tab')) switchTab(tId); }; tabBtn.querySelector('.close-tab').onmousedown = (e) => { e.stopPropagation(); closeTab(tId); }; lucide.createIcons({root: tabBtn}); switchTab(tId); load(url, tId); }; 
                     const switchTab = (tId) => { if(!tabs[tId]) return; activeTabId = tId; Object.keys(tabs).forEach(id => { const t = tabs[id]; if(id === tId) { t.btn.classList.add('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.remove('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.remove('hidden'); input.value = (t.url === 'home') ? '' : t.url; } else { t.btn.classList.remove('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.add('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.add('hidden'); } }); }; 
                     const closeTab = (tId) => { const t = tabs[tId]; if(!t) return; t.btn.remove(); t.content.remove(); delete tabs[tId]; const remaining = Object.keys(tabs); if(remaining.length === 0) { createTab('home'); } else if (activeTabId === tId) { switchTab(remaining[remaining.length - 1]); } }; 
-                    const load = (url, tId = activeTabId) => { const t = tabs[tId]; if(!t) return; let target = url.trim(); t.url = target; const titleEl = t.btn.querySelector('.tab-title'); const iconEl = t.btn.querySelector('.tab-icon'); if(target === 'home' || !target) { t.title = 'New Tab'; titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'zap'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'zap'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } t.mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full relative overflow-hidden"><div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/20 via-[#0a0a0f] to-[#0a0a0f]"></div><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none flex-col gap-2"><div class="w-20 h-20 rounded-full border-2 border-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.4)]"><i data-lucide="zap" class="w-10 h-10 text-cyan-400"></i></div><span class="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-cyan-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]">NEXUS</span></div><div class="w-full max-w-lg relative group"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-600 group-focus-within:text-cyan-400 transition-colors w-5 h-5"></i><input type="text" class="home-search w-full bg-[#13141c]/80 border border-cyan-900 rounded-lg py-4 pl-12 pr-4 text-cyan-50 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:border-cyan-700 transition-all backdrop-blur-sm" placeholder="Search Google securely..."></div></div></div>`; setTimeout(() => { const hs = t.mock.querySelector('.home-search'); if(hs && activeTabId === tId){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value, tId); }}; } }, 10); t.mock.classList.remove('hidden'); t.frame.classList.add('hidden'); lucide.createIcons({root: t.mock}); if(activeTabId === tId) input.value = ''; return; } if(target.startsWith('/')) { const file = fs.getPath(target); t.frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); if(activeTabId === tId) input.value = "file://" + target; t.title = target.split('/').pop(); titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'file-code'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'file-code'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(target); } } t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); let finalUrl = target; if(proxyEnabled && !target.startsWith('file://') && !target.includes('google.com')) { finalUrl = 'https://corsproxy.io/?' + encodeURIComponent(target); } t.frame.src = finalUrl; if(activeTabId === tId) input.value = target; try { const urlObj = new URL(target); t.title = urlObj.hostname; const img = document.createElement('img'); img.src = `https://s2.googleusercontent.com/s2/favicons?domain=${urlObj.hostname}&sz=16`; img.className = 'w-3 h-3 shrink-0 tab-icon rounded-sm'; if(iconEl) iconEl.replaceWith(img); } catch { t.title = target; } titleEl.innerText = t.title; }; 
+                    const load = (url, tId = activeTabId) => { const t = tabs[tId]; if(!t) return; let target = url.trim(); t.url = target; const titleEl = t.btn.querySelector('.tab-title'); const iconEl = t.btn.querySelector('.tab-icon'); if(target === 'home' || !target) { t.title = 'New Tab'; titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'zap'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'zap'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } t.mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full relative overflow-hidden"><div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/20 via-[#0a0a0f] to-[#0a0a0f]"></div><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none flex-col gap-2"><div class="w-20 h-20 rounded-full border-2 border-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.4)]"><i data-lucide="zap" class="w-10 h-10 text-cyan-400"></i></div><span class="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-cyan-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]">NEXUS</span></div><div class="w-full max-w-lg relative group"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-600 group-focus-within:text-cyan-400 transition-colors w-5 h-5"></i><input type="text" class="home-search w-full bg-[#13141c]/80 border border-cyan-900 rounded-lg py-4 pl-12 pr-4 text-cyan-50 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:border-cyan-700 transition-all backdrop-blur-sm" placeholder="Search Google securely..."></div></div></div>`; setTimeout(() => { const hs = t.mock.querySelector('.home-search'); if(hs && activeTabId === tId){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value, tId); }}; } }, 10); t.mock.classList.remove('hidden'); t.frame.classList.add('hidden'); lucide.createIcons({root: t.mock}); if(activeTabId === tId) input.value = ''; return; } if(target.startsWith('/')) { const file = fs.getPath(target); t.frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); if(activeTabId === tId) input.value = "file://" + target; t.title = target.split('/').pop(); titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'file-code'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'file-code'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(target); } } t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); 
+                    
+                    let finalUrl = target;
+                    
+                    // Special YouTube Bypass using Piped (piped.video)
+                    if (target.includes('youtube.com') || target.includes('youtu.be')) {
+                        finalUrl = target.replace(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)/i, 'https://piped.video');
+                        t.frame.removeAttribute('srcdoc');
+                        t.frame.src = finalUrl;
+                    } else if(proxyEnabled && !target.startsWith('file://') && !target.includes('google.com')) { 
+                        t.frame.removeAttribute('src');
+                        t.frame.srcdoc = "<html style='background:#0a0a0f'><body style='color:#22d3ee;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;'>Fetching via Nexus Proxy...</body></html>";
+                        fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(target))
+                            .then(res => {
+                                if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
+                                return res.text();
+                            })
+                            .then(html => {
+                                const origin = new URL(target).origin;
+                                let modified = html;
+                                if(modified.match(/<head>/i)) modified = modified.replace(/<head>/i, `<head><base href="${origin}/">`);
+                                else modified = `<base href="${origin}/">` + modified;
+                                t.frame.srcdoc = modified;
+                            })
+                            .catch(err => { t.frame.srcdoc = `<html style='background:#0a0a0f'><body style='color:#ef4444;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;'><i data-lucide="alert-triangle" style="width:48px;height:48px;margin-bottom:16px;"></i>Proxy Error: ${err.message}</body></html>`; });
+                    } else {
+                        t.frame.removeAttribute('srcdoc');
+                        t.frame.src = finalUrl; 
+                    }
+                    
+                    if(activeTabId === tId) input.value = target; try { const urlObj = new URL(finalUrl); t.title = urlObj.hostname; const img = document.createElement('img'); img.src = `https://s2.googleusercontent.com/s2/favicons?domain=${urlObj.hostname}&sz=16`; img.className = 'w-3 h-3 shrink-0 tab-icon rounded-sm'; if(iconEl) iconEl.replaceWith(img); } catch { t.title = target; } titleEl.innerText = t.title; }; 
                     newTabBtn.onclick = () => createTab('home'); root.querySelector('.browser-home').onclick = () => load('home'); root.querySelector('.browser-reload').onclick = () => load(tabs[activeTabId].url); root.querySelector('.browser-back').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.back(); } catch(e){} }; root.querySelector('.browser-forward').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.forward(); } catch(e){} }; root.querySelector('.browser-external').onclick = () => { if(tabs[activeTabId] && tabs[activeTabId].url && tabs[activeTabId].url !== 'home') window.open(tabs[activeTabId].url, '_blank'); }; input.onkeydown = (e) => { if(e.key==='Enter') load(input.value); }; createTab(startUrl || 'home'); 
                 } 
             },
@@ -1282,7 +1296,16 @@
                 const startMenuUser = document.getElementById('menu-user');
                 const startMenuAvatar = document.getElementById('menu-avatar');
                 if (startMenuUser) startMenuUser.innerText = userData.username;
-                if (startMenuAvatar) startMenuAvatar.innerText = userData.username.charAt(0).toUpperCase();
+                
+                if (userData.photo) {
+                    const imgHtml = `<img src="${userData.photo}" class="w-full h-full object-cover rounded-full">`;
+                    if (startMenuAvatar) startMenuAvatar.innerHTML = imgHtml;
+                    const loginAvatar = document.getElementById('login-avatar');
+                    if (loginAvatar) loginAvatar.innerHTML = imgHtml;
+                } else if (startMenuAvatar) {
+                    startMenuAvatar.innerText = userData.username.charAt(0).toUpperCase();
+                }
+
                 applyTheme(userData.theme || 'dark');
 
                 // Restore previous session windows
@@ -1301,7 +1324,7 @@
 
             if(!user) { msg.innerText = "Username is required!"; return; }
 
-            userData = { username: user, password: pass, theme: setupSelectedTheme };
+            userData = { username: user, password: pass, theme: setupSelectedTheme, photo: null };
             localStorage.setItem('gemini_os_user_data', JSON.stringify(userData));
 
             document.getElementById('setup-screen').classList.add('opacity-0', 'pointer-events-none');
@@ -1352,7 +1375,7 @@
         document.getElementById('login-pass').addEventListener('keydown', (e) => { if(e.key === 'Enter') attemptLogin(); });
 
         const bootText = document.getElementById('boot-text');
-        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.3...", "[ OK ] Mounting Filesystem...", "Starting Desktop..."];
+        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.13...", "[ OK ] Mounting Filesystem...", "Starting Desktop..."];
         let bi = 0;
         function runBoot() {
             if(bi < bootLines.length) { const d = document.createElement('div'); d.innerHTML = bootLines[bi].includes("OK") ? `<span class="text-green-500 font-bold">[ OK ]</span> ${bootLines[bi].replace("[ OK ] ", "")}` : bootLines[bi]; bootText.appendChild(d); bi++; setTimeout(runBoot, 150); } 
