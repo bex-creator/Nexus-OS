@@ -222,6 +222,20 @@
         <button onclick="location.reload()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="rotate-cw" class="w-4 h-4"></i> Restart System</button>
     </div>
 
+    <!-- Taskbar Context Menu -->
+    <div id="taskbar-context-menu" class="absolute bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-2xl w-48 py-1 hidden z-[9999] text-sm">
+        <button id="tcm-info" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="info" class="w-4 h-4 text-blue-400"></i> App Info</button>
+        <div class="h-px bg-gray-700 my-1"></div>
+        <button id="tcm-close" class="w-full text-left px-4 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 transition-colors"><i data-lucide="x" class="w-4 h-4"></i> Close Window</button>
+    </div>
+
+    <!-- Desktop Icon Context Menu -->
+    <div id="icon-context-menu" class="absolute bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-2xl w-48 py-1 hidden z-[9999] text-sm">
+        <button id="icm-open" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="external-link" class="w-4 h-4 text-green-400"></i> Open App</button>
+        <div class="h-px bg-gray-700 my-1"></div>
+        <button id="icm-delete" class="w-full text-left px-4 py-2 hover:bg-red-500/20 text-red-400 flex items-center gap-2 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i> Uninstall / Remove</button>
+    </div>
+
     <!-- Window Area -->
     <div id="window-area" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
 
@@ -287,7 +301,14 @@
         window.maximizeWindow = (id) => appManager.maximizeWindow(id);
         window.toggleFullScreen = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(console.log); else if (document.exitFullscreen) document.exitFullscreen(); };
         window.loadUrlInBrowser = (winId, url) => { if(appDefinitions.browser.instanceFuncs[winId]) appDefinitions.browser.instanceFuncs[winId](url); };
-        window.hideContextMenu = () => document.getElementById('context-menu').classList.add('hidden');
+        
+        window.hideAllContextMenus = () => { 
+            document.getElementById('context-menu').classList.add('hidden'); 
+            document.getElementById('taskbar-context-menu').classList.add('hidden');
+            document.getElementById('icon-context-menu').classList.add('hidden');
+        };
+        window.hideContextMenu = window.hideAllContextMenus;
+        
         window.applyTheme = (t) => systemState.applyTheme(t);
         window.setWallpaper = (url) => { document.body.style.backgroundImage = `url('${url}')`; localStorage.setItem('gemini_os_wallpaper', url); window.notify("Settings", "Wallpaper updated."); };
         window.notify = (title, msg, duration = 4000) => {
@@ -1198,6 +1219,18 @@
                     : `<i data-lucide="${def.icon}" class="w-5 h-5 ${def.color}"></i>`;
                 task.innerHTML = taskIconHtml;
                 
+                task.oncontextmenu = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    window.hideAllContextMenus();
+                    const cm = document.getElementById('taskbar-context-menu');
+                    cm.style.left = e.clientX + 'px';
+                    cm.style.top = (window.innerHeight - 100) + 'px'; // Pop up above taskbar
+                    cm.classList.remove('hidden');
+                    
+                    document.getElementById('tcm-close').onclick = () => { appManager.closeWindow(id); cm.classList.add('hidden'); };
+                    document.getElementById('tcm-info').onclick = () => { window.notify("App Info", `App: ${def.title}<br>Process ID: ${id}`, 5000); cm.classList.add('hidden'); };
+                };
+                
                 document.getElementById('taskbar-apps').appendChild(task);
                 
                 lucide.createIcons({root: win});
@@ -1320,7 +1353,32 @@
                 d.innerHTML = `<div class="w-12 h-12 flex items-center justify-center pointer-events-none">${iconHtml}</div><span class="text-xs text-center bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded text-white shadow pointer-events-none w-full truncate">${name}</span>`;
                 c.appendChild(d);
 
+                d.oncontextmenu = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    window.hideAllContextMenus();
+                    const cm = document.getElementById('icon-context-menu');
+                    cm.style.left = e.clientX + 'px'; cm.style.top = e.clientY + 'px';
+                    cm.classList.remove('hidden');
+                    
+                    document.getElementById('icm-open').onclick = () => { eval(data.action || `openApp('editor', '/home/user/Desktop/${name}')`); cm.classList.add('hidden'); };
+                    document.getElementById('icm-delete').onclick = () => { 
+                        if(confirm(`Remove ${name} from desktop?`)) {
+                            fs.deletePath(`/home/user/Desktop/${name}`);
+                            if(data.action && data.action.includes('/home/user/apps/')) {
+                                if(confirm(`Do you also want to UNINSTALL the app completely from your device?`)) {
+                                    const match = data.action.match(/'(\/home\/user\/apps\/[^']+)'/);
+                                    if(match && match[1]) fs.deletePath(match[1]);
+                                    window.notify("Uninstalled", `${name} has been completely removed.`);
+                                }
+                            }
+                            renderDesktop();
+                        }
+                        cm.classList.add('hidden'); 
+                    };
+                };
+
                 d.onmousedown = (e) => {
+                    if (e.button !== 0) return; // Only allow drag on left click
                     e.preventDefault();
                     let startX = e.clientX, startY = e.clientY;
                     let isDragging = false;
@@ -1357,9 +1415,22 @@
                         if (!isDragging) {
                             eval(data.action || `openApp('editor', '/home/user/Desktop/${name}')`);
                         } else {
+                            // Snap to Grid Logic
+                            const gridX = 100; // Snap grid width
+                            const gridY = 100; // Snap grid height
+                            let finalX = Math.round(parseFloat(d.style.left) / gridX) * gridX;
+                            let finalY = Math.round(parseFloat(d.style.top) / gridY) * gridY;
+                            
+                            // Keep in bounds
+                            finalX = Math.max(0, finalX);
+                            finalY = Math.max(0, finalY);
+
+                            d.style.left = finalX + 'px';
+                            d.style.top = finalY + 'px';
+
                             // Save new coordinates persistently
-                            data.x = parseFloat(d.style.left);
-                            data.y = parseFloat(d.style.top);
+                            data.x = finalX;
+                            data.y = finalY;
                             fs.updateNode();
                         }
                     };
@@ -1420,8 +1491,21 @@
         const menuBtn = document.getElementById('menu-btn');
         const startMenu = document.getElementById('start-menu');
         menuBtn.onclick = (e) => { e.stopPropagation(); startMenu.classList.toggle('opacity-0'); startMenu.classList.toggle('pointer-events-none'); };
-        document.onclick = (e) => { if(!startMenu.contains(e.target) && !menuBtn.contains(e.target)) startMenu.classList.add('opacity-0', 'pointer-events-none'); if(!document.getElementById('context-menu').contains(e.target)) document.getElementById('context-menu').classList.add('hidden'); };
-        window.addEventListener('contextmenu', (e) => { e.preventDefault(); if(e.target.closest('.window') || e.target.closest('#start-menu') || e.target.closest('.taskbar')) return; const cm = document.getElementById('context-menu'); cm.style.left = e.clientX + 'px'; cm.style.top = e.clientY + 'px'; cm.classList.remove('hidden'); });
+        
+        document.onclick = (e) => { 
+            if(!startMenu.contains(e.target) && !menuBtn.contains(e.target)) startMenu.classList.add('opacity-0', 'pointer-events-none'); 
+            window.hideAllContextMenus();
+        };
+        
+        window.addEventListener('contextmenu', (e) => { 
+            e.preventDefault(); 
+            if(e.target.closest('.window') || e.target.closest('#start-menu') || e.target.closest('.taskbar')) return; 
+            window.hideAllContextMenus();
+            const cm = document.getElementById('context-menu'); 
+            cm.style.left = e.clientX + 'px'; 
+            cm.style.top = e.clientY + 'px'; 
+            cm.classList.remove('hidden'); 
+        });
 
         window.startSystemUpdate = () => {
             document.getElementById('update-screen').classList.remove('hidden');
