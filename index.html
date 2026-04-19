@@ -299,6 +299,48 @@
             if(duration > 0) setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, duration);
         };
 
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'INSTALL_NEXUS_APP') {
+                const { name, content, icon } = e.data;
+                if (!name || !content) return;
+                const path = `/home/user/apps/${name}.html`;
+                if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
+                fs.createPath(path, 'file', content);
+                fs.getPath('/home/user/Desktop').children[name] = { type: 'link', action: `openApp('runner', '${path}')`, icon: icon || 'box', color: 'text-green-400' };
+                renderDesktop();
+                window.notify("Store", `${name} installed successfully!`);
+            }
+        });
+
+        // URL Parameter App Installation
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const installAppStr = urlParams.get('install_app');
+            if (installAppStr) {
+                const appData = JSON.parse(decodeURIComponent(escape(atob(installAppStr))));
+                console.log("App to install:", appData);
+                const { name, content, icon } = appData;
+                if (name && content) {
+                    const path = `/home/user/apps/${name}.html`;
+                    if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
+                    fs.createPath(path, 'file', content);
+                    fs.getPath('/home/user/Desktop').children[name] = { type: 'link', action: `openApp('runner', '${path}')`, icon: icon || 'box', color: 'text-green-400' };
+                    saveFS();
+                    
+                    // Delay notification slightly so it shows up after the boot screen finishes
+                    setTimeout(() => {
+                        window.notify("App Installed", `${name} was installed from URL!`);
+                        if (typeof renderDesktop === 'function') renderDesktop();
+                    }, 2000);
+                    
+                    // Clean up the URL so it doesn't reinstall on page refresh
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+        } catch(e) {
+            console.error("Error parsing install_app URL parameter:", e);
+        }
+
         window.toggleWorkspace = () => {
             currentWorkspace = currentWorkspace === 1 ? 2 : 1;
             const btn = document.getElementById('ws-indicator');
@@ -330,13 +372,51 @@
 
         const mediaManager = {
             audio: null,
+            db: null,
             playlist: [
                 { title: "Lofi Study", artist: "FASSounds", url: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3", cover: "https://placehold.co/150x150/1db954/121212.png?text=Lofi" },
                 { title: "Chill Abstract", artist: "Coma-Media", url: "https://cdn.pixabay.com/download/audio/2022/11/03/audio_73e72648fb.mp3", cover: "https://placehold.co/150x150/8b5cf6/121212.png?text=Chill" },
                 { title: "Good Night", artist: "FASSounds", url: "https://cdn.pixabay.com/download/audio/2022/10/25/audio_517a61d155.mp3", cover: "https://placehold.co/150x150/3b82f6/121212.png?text=Night" }
             ],
             currentIndex: -1,
-            init: () => {
+            initDB: () => {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open("NexusMusicDB", 1);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains("tracks")) {
+                            db.createObjectStore("tracks", { keyPath: "id", autoIncrement: true });
+                        }
+                    };
+                    request.onsuccess = (e) => {
+                        mediaManager.db = e.target.result;
+                        resolve(e.target.result);
+                    };
+                    request.onerror = (e) => reject(e);
+                });
+            },
+            loadSavedTracks: () => {
+                if (!mediaManager.db) return;
+                const transaction = mediaManager.db.transaction(["tracks"], "readonly");
+                const store = transaction.objectStore("tracks");
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const tracks = request.result;
+                    tracks.forEach(t => {
+                        try {
+                            const url = URL.createObjectURL(t.file);
+                            mediaManager.playlist.push({
+                                title: t.title,
+                                artist: t.artist,
+                                url: url,
+                                cover: t.cover
+                            });
+                        } catch(e) { console.warn("Failed to load a track from DB", e); }
+                    });
+                    if(window.refreshMusicAppUI) window.refreshMusicAppUI();
+                };
+            },
+            init: async () => {
                 mediaManager.audio = document.getElementById('system-audio');
                 mediaManager.audio.addEventListener('timeupdate', mediaManager.updateProgress);
                 mediaManager.audio.addEventListener('ended', mediaManager.next);
@@ -382,17 +462,37 @@
                         mediaManager.audio.currentTime = details.seekTime;
                     });
                 }
+                
+                // Initialize DB and load saved tracks
+                try {
+                    await mediaManager.initDB();
+                    mediaManager.loadSavedTracks();
+                } catch(e) { console.warn("Failed to init music DB", e); }
             },
             addTrack: (file, silent = false) => {
+                const title = file.name.replace(/\.[^/.]+$/, "");
+                const artist = "Local Device";
+                const cover = "https://placehold.co/150x150/1f2937/ffffff.png?text=Local";
                 const url = URL.createObjectURL(file);
+                
                 mediaManager.playlist.push({
-                    title: file.name.replace(/\.[^/.]+$/, ""),
-                    artist: "Local Device",
+                    title: title,
+                    artist: artist,
                     url: url,
-                    cover: "https://placehold.co/150x150/1f2937/ffffff.png?text=Local"
+                    cover: cover
                 });
+                
                 if(window.refreshMusicAppUI) window.refreshMusicAppUI();
                 if(!silent) window.notify("Music Uploaded", `Added ${file.name} to Library`, 2000);
+                
+                // Persist the track object in IndexedDB
+                if (mediaManager.db) {
+                    try {
+                        const transaction = mediaManager.db.transaction(["tracks"], "readwrite");
+                        const store = transaction.objectStore("tracks");
+                        store.add({ file, title, artist, cover });
+                    } catch(e) { console.warn("Could not save track to DB", e); }
+                }
             },
             playTrack: (index) => {
                 if (index < 0 || index >= mediaManager.playlist.length) return;
