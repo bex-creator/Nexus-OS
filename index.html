@@ -33,7 +33,7 @@
         .terminal-font { font-family: 'JetBrains Mono', monospace; }
         #boot-screen, #login-screen, #update-screen, #setup-screen { z-index: 9999; }
         #publish-modal { z-index: 9000; }
-        #calendar-widget { z-index: 5000; }
+        #calendar-widget, #quick-settings { z-index: 5000; }
 
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
@@ -73,7 +73,7 @@
         .task-item.active { background-color: rgba(255, 255, 255, 0.15); border-bottom: 2px solid var(--accent-color); }
         .task-item.hidden-workspace { opacity: 0.3; } /* Dim icons for windows on other desks */
         
-        #context-menu, #file-context-menu { transition: opacity 0.1s ease; }
+        #context-menu, #file-context-menu, #taskbar-context-menu, #icon-context-menu { transition: opacity 0.1s ease; }
         
         /* Notifications */
         #notification-area { pointer-events: none; }
@@ -92,6 +92,31 @@
 
     <!-- Audio Element -->
     <audio id="system-audio" src=""></audio>
+
+    <!-- Quick Settings Panel -->
+    <div id="quick-settings" class="absolute bottom-14 right-2 w-64 bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-lg shadow-2xl p-4 hidden opacity-0 transition-opacity duration-200 transform origin-bottom-right">
+        <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2"><i data-lucide="sliders" class="w-4 h-4 text-blue-400"></i> Quick Settings</h3>
+        <div class="space-y-5">
+            <!-- Volume -->
+            <div>
+                <div class="flex justify-between text-xs text-gray-400 mb-2 font-bold"><span>VOLUME</span><span id="qs-vol-val">100%</span></div>
+                <div class="flex items-center gap-3">
+                    <i data-lucide="volume-2" class="w-4 h-4 text-gray-400"></i>
+                    <input type="range" id="qs-volume" class="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500" value="100" min="0" max="100">
+                </div>
+            </div>
+            <!-- Theme Toggle -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="moon" class="w-4 h-4 text-gray-400" id="qs-theme-icon"></i>
+                    <span class="text-sm text-gray-300 font-medium">Dark Mode</span>
+                </div>
+                <button id="qs-theme-toggle" class="w-10 h-5 bg-blue-600 rounded-full relative transition-colors shadow-inner" onclick="toggleDarkMode()">
+                    <div class="w-4 h-4 bg-white rounded-full absolute top-0.5 left-[22px] transition-all shadow" id="qs-theme-knob"></div>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Media Widget -->
     <div id="media-widget" class="absolute bottom-14 right-4 w-72 bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-lg shadow-2xl p-4 hidden opacity-0 transition-opacity duration-200 transform origin-bottom-right z-[5000]">
@@ -252,7 +277,7 @@
         </div>
         <div class="flex items-center gap-4 text-xs font-medium text-gray-300">
             <button id="media-taskbar-btn" class="hidden px-2 py-1 hover:bg-white/10 rounded cursor-pointer transition-colors" onclick="toggleMediaWidget()"><i data-lucide="music" class="w-4 h-4 text-indigo-400"></i></button>
-            <div class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/10 transition-colors cursor-default">
+            <div class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/10 transition-colors cursor-pointer" onclick="toggleQuickSettings()">
                 <i data-lucide="wifi" class="w-4 h-4"></i>
                 <div id="battery-container" class="flex items-center gap-1">
                     <i data-lucide="battery-medium" class="w-4 h-4"></i>
@@ -306,6 +331,8 @@
             document.getElementById('context-menu').classList.add('hidden'); 
             document.getElementById('taskbar-context-menu').classList.add('hidden');
             document.getElementById('icon-context-menu').classList.add('hidden');
+            document.getElementById('quick-settings').classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => document.getElementById('quick-settings').classList.add('hidden'), 200);
         };
         window.hideContextMenu = window.hideAllContextMenus;
         
@@ -319,6 +346,42 @@
             area.appendChild(el);
             if(duration > 0) setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, duration);
         };
+
+        window.toggleQuickSettings = () => {
+            const qs = document.getElementById('quick-settings');
+            if (qs.classList.contains('hidden')) {
+                window.hideAllContextMenus();
+                qs.classList.remove('hidden', 'pointer-events-none');
+                setTimeout(() => qs.classList.remove('opacity-0'), 10);
+            } else {
+                qs.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => qs.classList.add('hidden'), 200);
+            }
+        };
+
+        window.toggleDarkMode = () => {
+            const isDark = document.getElementById('qs-theme-knob').style.left === '22px';
+            if (isDark) {
+                applyTheme('light');
+                document.getElementById('qs-theme-knob').style.left = '2px';
+                document.getElementById('qs-theme-toggle').classList.replace('bg-blue-600', 'bg-gray-400');
+                document.getElementById('qs-theme-icon').setAttribute('data-lucide', 'sun');
+            } else {
+                applyTheme('dark');
+                document.getElementById('qs-theme-knob').style.left = '22px';
+                document.getElementById('qs-theme-toggle').classList.replace('bg-gray-400', 'bg-blue-600');
+                document.getElementById('qs-theme-icon').setAttribute('data-lucide', 'moon');
+            }
+            if (userData) { userData.theme = isDark ? 'light' : 'dark'; localStorage.setItem('gemini_os_user_data', JSON.stringify(userData)); }
+            lucide.createIcons();
+        };
+
+        // Volume slider sync
+        document.getElementById('qs-volume').addEventListener('input', (e) => {
+            const vol = e.target.value;
+            document.getElementById('qs-vol-val').innerText = `${vol}%`;
+            if (mediaManager && mediaManager.audio) mediaManager.audio.volume = vol / 100;
+        });
 
         // Add this anywhere in your Nexus OS scripts
         window.addEventListener('message', (event) => {
@@ -439,13 +502,13 @@
 
         window.toggleCalendar = () => {
             const cal = document.getElementById('calendar-widget');
-            if (cal.classList.contains('hidden')) { cal.classList.remove('hidden'); setTimeout(() => cal.classList.remove('opacity-0'), 10); renderCalendar(); } 
+            if (cal.classList.contains('hidden')) { window.hideAllContextMenus(); cal.classList.remove('hidden'); setTimeout(() => cal.classList.remove('opacity-0'), 10); renderCalendar(); } 
             else { cal.classList.add('opacity-0'); setTimeout(() => cal.classList.add('hidden'), 200); }
         };
 
         window.toggleMediaWidget = () => {
             const w = document.getElementById('media-widget');
-            if(w.classList.contains('hidden')) { w.classList.remove('hidden'); setTimeout(()=>w.classList.remove('opacity-0'), 10); }
+            if(w.classList.contains('hidden')) { window.hideAllContextMenus(); w.classList.remove('hidden'); setTimeout(()=>w.classList.remove('opacity-0'), 10); }
             else { w.classList.add('opacity-0'); setTimeout(()=>w.classList.add('hidden'), 200); }
         };
 
@@ -484,12 +547,15 @@
                     tracks.forEach(t => {
                         try {
                             const url = URL.createObjectURL(t.file);
-                            mediaManager.playlist.push({
-                                title: t.title,
-                                artist: t.artist,
-                                url: url,
-                                cover: t.cover
-                            });
+                            // Prevent duplicates if already loaded
+                            if (!mediaManager.playlist.some(p => p.title === t.title && p.artist === t.artist)) {
+                                mediaManager.playlist.push({
+                                    title: t.title,
+                                    artist: t.artist,
+                                    url: url,
+                                    cover: t.cover
+                                });
+                            }
                         } catch(e) { console.warn("Failed to load a track from DB", e); }
                     });
                     if(window.refreshMusicAppUI) window.refreshMusicAppUI();
@@ -569,7 +635,9 @@
                     try {
                         const transaction = mediaManager.db.transaction(["tracks"], "readwrite");
                         const store = transaction.objectStore("tracks");
-                        store.add({ file, title, artist, cover });
+                        // Store as Blob to ensure strict cross-browser IndexedDB compatibility
+                        const blob = new Blob([file], { type: file.type || 'audio/mpeg' });
+                        store.add({ file: blob, title, artist, cover });
                     } catch(e) { console.warn("Could not save track to DB", e); }
                 }
             },
@@ -666,8 +734,9 @@
         const defaultFileSystem = { root: { type: 'dir', children: { home: { type: 'dir', children: { user: { type: 'dir', children: {
             Desktop: { type: 'dir', children: {
                 "Welcome": { type: 'link', action: "openApp('welcome')", icon: 'info', color: 'text-purple-400' },
+                "File Explorer": { type: 'link', action: "openApp('explorer')", icon: 'folder', color: 'text-yellow-500' },
                 "Nexus Store": { type: 'link', action: "openApp('community')", icon: 'shopping-bag', color: 'text-green-400', img: svgStore },
-                "My Apps": { type: 'link', action: "openApp('appManager')", icon: 'package', color: 'text-yellow-400' },
+                "System Monitor": { type: 'link', action: "openApp('taskmgr')", icon: 'activity', color: 'text-green-500' },
                 "Paint": { type: 'link', action: "openApp('paint')", icon: 'brush', color: 'text-pink-400' },
                 "Calculator": { type: 'link', action: "openApp('calculator')", icon: 'calculator', color: 'text-gray-200' },
                 "Music": { type: 'link', action: "openApp('music')", icon: 'music', color: 'text-indigo-400' },
@@ -696,6 +765,12 @@
                 deskNode.children["Nexus Browser"].img = svgNexus;
                 deskNode.children["Nexus Browser"].color = 'text-cyan-400';
             }
+            if (!deskNode.children["File Explorer"]) {
+                deskNode.children["File Explorer"] = { type: 'link', action: "openApp('explorer')", icon: 'folder', color: 'text-yellow-500' };
+            }
+            if (!deskNode.children["System Monitor"]) {
+                deskNode.children["System Monitor"] = { type: 'link', action: "openApp('taskmgr')", icon: 'activity', color: 'text-green-500' };
+            }
             saveFS();
         }
 
@@ -711,6 +786,163 @@
         };
 
         const appDefinitions = {
+            explorer: {
+                title: 'File Explorer', icon: 'folder', color: 'text-yellow-500', width: '600px', height: '450px',
+                render: () => `<div class="h-full flex bg-[#1e1e1e] text-gray-300 font-sans overflow-hidden">
+                    <div class="w-40 bg-[#2d2d2d] border-r border-gray-700 p-2 flex flex-col gap-1 z-10 shrink-0">
+                        <button class="exp-nav text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2 text-sm text-blue-400" data-path="/home/user"><i data-lucide="home" class="w-4 h-4"></i> Home</button>
+                        <button class="exp-nav text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2 text-sm" data-path="/home/user/Desktop"><i data-lucide="monitor" class="w-4 h-4"></i> Desktop</button>
+                        <button class="exp-nav text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2 text-sm" data-path="/home/user/apps"><i data-lucide="box" class="w-4 h-4"></i> Apps</button>
+                    </div>
+                    <div class="flex-1 flex flex-col bg-[#1e1e1e]">
+                        <div class="h-10 border-b border-gray-700 flex items-center px-3 bg-[#252525] gap-2">
+                            <button class="exp-up hover:bg-white/10 p-1 rounded text-gray-400"><i data-lucide="arrow-up" class="w-4 h-4"></i></button>
+                            <input type="text" class="exp-path flex-1 bg-[#1e1e1e] border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-blue-500" readonly>
+                            <button class="exp-upload bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs flex items-center gap-1 shadow font-bold"><i data-lucide="upload" class="w-3 h-3"></i> Upload File</button>
+                            <input type="file" class="exp-file-input hidden" multiple>
+                        </div>
+                        <div class="flex-1 p-3 overflow-y-auto custom-scrollbar flex flex-wrap content-start gap-2 exp-view"></div>
+                    </div>
+                </div>`,
+                init: (id, root) => {
+                    let currentPath = '/home/user';
+                    const view = root.querySelector('.exp-view');
+                    const pathInput = root.querySelector('.exp-path');
+                    
+                    // Upload Logic
+                    const uploadBtn = root.querySelector('.exp-upload');
+                    const fileInput = root.querySelector('.exp-file-input');
+                    uploadBtn.onclick = () => fileInput.click();
+                    fileInput.onchange = (e) => {
+                        const files = Array.from(e.target.files);
+                        if(!files.length) return;
+                        
+                        let successCount = 0;
+                        files.forEach(file => {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                const isImage = file.type.startsWith('image/');
+                                try {
+                                    if(!fs.getPath(currentPath)) fs.createPath(currentPath, 'dir');
+                                    const node = fs.getPath(currentPath);
+                                    if (node && node.type === 'dir') {
+                                        node.children[file.name] = { 
+                                            type: 'file', 
+                                            content: ev.target.result,
+                                            img: isImage ? ev.target.result : undefined 
+                                        };
+                                        saveFS();
+                                        successCount++;
+                                        if (successCount === files.length) {
+                                            loadPath(currentPath); // Refresh view
+                                            window.notify("Upload Complete", `Successfully uploaded ${files.length} file(s).`);
+                                        }
+                                    }
+                                } catch(err) {
+                                    alert(`Failed to save ${file.name}. LocalStorage might be full (Browsers limit sizes).`);
+                                }
+                            };
+                            if(file.type.startsWith('text/') || file.name.endsWith('.html') || file.name.endsWith('.md')) {
+                                reader.readAsText(file);
+                            } else {
+                                reader.readAsDataURL(file); // Base64 encoding for media files
+                            }
+                        });
+                        e.target.value = ''; // Reset input
+                    };
+
+                    const loadPath = (p) => {
+                        currentPath = p; pathInput.value = p; view.innerHTML = '';
+                        const node = fs.getPath(p);
+                        if(!node || node.type !== 'dir' || !node.children) { view.innerHTML = '<div class="text-gray-500 w-full text-center mt-4">Directory is empty or inaccessible.</div>'; return; }
+                        Object.entries(node.children).forEach(([name, data]) => {
+                            const el = document.createElement('div');
+                            el.className = "flex flex-col items-center justify-start gap-1 w-20 p-2 hover:bg-white/10 rounded cursor-pointer transition-colors text-center group";
+                            let icon = data.type === 'dir' ? 'folder' : (data.type === 'link' ? (data.icon||'external-link') : 'file-code');
+                            let color = data.type === 'dir' ? 'text-yellow-500' : 'text-blue-400';
+                            
+                            // Smart icon detection for generic files
+                            if (data.type === 'file' && typeof data.content === 'string') {
+                                if (data.content.startsWith('data:audio/')) { icon = 'music'; color = 'text-indigo-400'; }
+                                else if (data.content.startsWith('data:video/')) { icon = 'video'; color = 'text-purple-400'; }
+                                else if (data.content.startsWith('data:image/')) { icon = 'image'; color = 'text-green-400'; }
+                            }
+
+                            if(data.img) {
+                                el.innerHTML = `<img src="${data.img}" class="w-10 h-10 rounded drop-shadow pointer-events-none mb-1 object-cover"><span class="text-xs truncate w-full pointer-events-none group-hover:whitespace-normal group-hover:break-words leading-tight">${name}</span>`;
+                            } else {
+                                el.innerHTML = `<i data-lucide="${icon}" class="w-10 h-10 ${color} pointer-events-none mb-1"></i><span class="text-xs truncate w-full pointer-events-none group-hover:whitespace-normal group-hover:break-words leading-tight">${name}</span>`;
+                            }
+                            el.ondblclick = () => {
+                                if(data.type === 'dir') loadPath(p + '/' + name);
+                                else if(data.type === 'link' && data.action) eval(data.action);
+                                else if(data.type === 'file') {
+                                    // Open media correctly instead of as code
+                                    if (typeof data.content === 'string' && (data.content.startsWith('data:image/') || data.content.startsWith('data:audio/') || data.content.startsWith('data:video/'))) {
+                                        openApp('runner', { name: name, url: data.content });
+                                    } else {
+                                        openApp('editor', p + '/' + name);
+                                    }
+                                }
+                            };
+                            view.appendChild(el);
+                        });
+                        lucide.createIcons({root: view});
+                        root.querySelectorAll('.exp-nav').forEach(b => {
+                            if(b.dataset.path === p) b.classList.add('text-blue-400', 'bg-white/5');
+                            else b.classList.remove('text-blue-400', 'bg-white/5');
+                        });
+                    };
+                    root.querySelector('.exp-up').onclick = () => {
+                        if(currentPath === '/home/user' || currentPath === '/') return;
+                        let parts = currentPath.split('/'); parts.pop();
+                        loadPath(parts.join('/') || '/');
+                    };
+                    root.querySelectorAll('.exp-nav').forEach(btn => btn.onclick = () => loadPath(btn.dataset.path));
+                    loadPath(currentPath);
+                }
+            },
+            taskmgr: {
+                title: 'System Monitor', icon: 'activity', color: 'text-green-500', width: '500px', height: '400px',
+                render: () => `<div class="h-full bg-[#1e1e1e] flex flex-col text-sm text-gray-200">
+                    <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-[#252525]">
+                        <div class="font-bold flex items-center gap-2"><i data-lucide="cpu" class="w-4 h-4 text-green-500"></i> Running Processes</div>
+                        <button class="tm-refresh px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors text-xs flex items-center gap-1 shadow"><i data-lucide="refresh-cw" class="w-3 h-3 inline"></i> Refresh</button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-2 tm-list custom-scrollbar"></div>
+                </div>`,
+                init: (id, root) => {
+                    const list = root.querySelector('.tm-list');
+                    const renderTasks = () => {
+                        list.innerHTML = `<div class="grid grid-cols-12 gap-2 p-2 border-b border-gray-700 text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 sticky top-0 bg-[#1e1e1e] z-10"><div class="col-span-5">Application</div><div class="col-span-3">Process ID</div><div class="col-span-2">Status</div><div class="col-span-2 text-right">Action</div></div>`;
+                        const taskKeys = Object.keys(windows);
+                        if (taskKeys.length === 0) {
+                            list.innerHTML += `<div class="text-center text-gray-500 mt-6 text-xs">No active processes.</div>`;
+                            return;
+                        }
+                        taskKeys.forEach(wId => {
+                            const w = windows[wId];
+                            const def = appDefinitions[w.appId];
+                            if(!def) return;
+                            const row = document.createElement('div');
+                            row.className = "grid grid-cols-12 gap-2 p-2 border-b border-gray-800/50 items-center hover:bg-white/5 transition-colors rounded-lg mb-1";
+                            row.innerHTML = `
+                                <div class="col-span-5 flex items-center gap-2 truncate">
+                                    ${def.img ? `<img src="${def.img}" class="w-4 h-4 rounded-sm">` : `<i data-lucide="${def.icon}" class="w-4 h-4 ${def.color}"></i>`}
+                                    <span class="truncate font-medium">${def.title}</span>
+                                </div>
+                                <div class="col-span-3 text-gray-500 font-mono text-xs truncate">${w.element.id}</div>
+                                <div class="col-span-2 text-green-400 text-xs flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_#22c55e]"></div>Running</div>
+                                <div class="col-span-2 text-right"><button class="px-2 py-1 bg-red-900/30 hover:bg-red-900/60 text-red-400 rounded text-xs transition-colors w-full" onclick="closeWindow('${w.element.id}'); setTimeout(()=>document.querySelector('.tm-refresh').click(), 100)">End Task</button></div>
+                            `;
+                            list.appendChild(row);
+                        });
+                        lucide.createIcons({root: list});
+                    };
+                    root.querySelector('.tm-refresh').onclick = renderTasks;
+                    renderTasks();
+                }
+            },
             browser: { title: 'Nexus Browser', icon: 'globe', color: 'text-cyan-400', img: svgNexus, singleInstance: true, instanceFuncs: {}, 
                 render: () => `<div class="h-full bg-[#0a0a0f] flex flex-col text-sm font-sans relative overflow-hidden"><div class="absolute inset-0 bg-gradient-to-br from-cyan-900/20 to-purple-900/20 pointer-events-none"></div><div class="bg-black/60 backdrop-blur-md flex items-end px-2 pt-2 gap-1 overflow-x-auto tab-bar-container relative h-10 custom-scrollbar flex-shrink-0 border-b border-cyan-500/30 z-10"> <button class="new-tab-btn text-cyan-400 hover:bg-cyan-500/20 p-1.5 rounded-md mb-1 ml-1 shrink-0 transition"><i data-lucide="plus" class="w-4 h-4"></i></button></div><div class="bg-black/80 backdrop-blur-xl p-2 flex gap-2 items-center z-10 border-b border-cyan-500/20 shrink-0"><div class="flex items-center gap-1 text-gray-400"><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-back"><i data-lucide="arrow-left" class="w-4 h-4"></i></button><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-forward"><i data-lucide="arrow-right" class="w-4 h-4"></i></button><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-reload"><i data-lucide="rotate-cw" class="w-4 h-4"></i></button><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-home"><i data-lucide="home" class="w-4 h-4"></i></button></div><div class="flex-1 relative flex items-center group"><div class="absolute left-3 text-cyan-500/50 group-focus-within:text-cyan-400 transition-colors"><i data-lucide="globe" class="w-4 h-4"></i></div><input type="text" class="browser-url w-full bg-[#13141c]/80 border border-cyan-900/50 rounded-md pl-9 pr-4 py-1.5 text-cyan-100 text-xs focus:outline-none focus:border-cyan-500 focus:bg-[#1a1b26] focus:shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all" placeholder="Search the web or enter URL..."></div><div class="flex items-center gap-1"><button class="proxy-toggle p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors" title="Nexus Proxy: OFF (Click to bypass iframe blocks)"><i data-lucide="shield-off" class="w-4 h-4"></i></button><button class="hover:bg-cyan-500/20 hover:text-cyan-400 rounded p-1.5 transition-colors browser-external" title="Pop Out"><i data-lucide="external-link" class="w-4 h-4"></i></button></div></div><div class="flex-1 relative tab-content-container bg-[#0a0a0f] z-0"></div></div>`, 
                 init: (id, root, startUrl) => { 
