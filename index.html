@@ -302,18 +302,21 @@
         // Add this anywhere in your Nexus OS scripts
         window.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'NEXUS_OS_INSTALL_APP') {
-                const appData = event.data.appData;
+                // Fallback to event.data if event.data.appData is undefined
+                const appData = event.data.appData || event.data;
                 console.log("Nexus OS Background Install triggered!", appData);
                 
-                // Write your logic to save the app to the Nexus OS filesystem here!
-                if (appData && appData.content) {
-                    const name = appData.title || appData.name || 'New App';
-                    const path = `/home/user/apps/${name}.html`;
+                // Support both .content and .code depending on how the store sends it
+                const appContent = appData.content || appData.code;
+                const appName = appData.title || appData.name || 'New App';
+
+                if (appData && appContent) {
+                    const path = `/home/user/apps/${appName}.html`;
                     
                     if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
-                    fs.createPath(path, 'file', appData.content);
+                    fs.createPath(path, 'file', appContent);
                     
-                    fs.getPath('/home/user/Desktop').children[name] = { 
+                    fs.getPath('/home/user/Desktop').children[appName] = { 
                         type: 'link', 
                         action: `openApp('runner', '${path}')`, 
                         icon: appData.icon || 'box', 
@@ -322,10 +325,20 @@
                     
                     saveFS();
                     renderDesktop();
-                    window.openApp('runner', path); // Make it pop up immediately!
+                    
+                    // Make it pop up immediately!
+                    window.openApp('runner', path); 
+                    
+                    // Optional notification alongside the alert
+                    window.notify("App Installed", `${appName} added to desktop!`);
+                } else {
+                    console.error("Install failed: Missing app content in payload", appData);
                 }
 
-                alert(`Successfully downloaded ${appData.title} from NexusStore!`);
+                // Show alert without blocking the UI thread immediately
+                setTimeout(() => {
+                    alert(`Successfully downloaded ${appName} from NexusStore!`);
+                }, 100);
             }
         });
 
