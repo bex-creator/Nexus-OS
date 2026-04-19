@@ -322,6 +322,7 @@
                     
                     saveFS();
                     renderDesktop();
+                    window.openApp('runner', path); // Make it pop up immediately!
                 }
 
                 alert(`Successfully downloaded ${appData.title} from NexusStore!`);
