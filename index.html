@@ -858,7 +858,8 @@
                 "Music": { type: 'link', action: "openApp('music')", icon: 'music', color: 'text-indigo-400' },
                 "Reminders": { type: 'link', action: "openApp('reminders')", icon: 'bell', color: 'text-yellow-400' },
                 "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus },
-                "Web Search": { type: 'link', action: "openApp('runner', { name: 'Google Search', url: 'https://www.google.com/webhp?igu=1' })", icon: 'search', color: 'text-blue-400' }
+                "Web Search": { type: 'link', action: "openApp('runner', { name: 'Google Search', url: 'https://www.google.com/webhp?igu=1' })", icon: 'search', color: 'text-blue-400' },
+                "Paintings": { type: 'dir', children: {} }
             }},
             apps: { type: 'dir', children: {} },
             Documents: { type: 'dir', children: { "hello_world.html": { type: 'file', content: "<h1 style='color:blue'>Hello World</h1><p>Run me!</p>" } }},
@@ -891,6 +892,9 @@
             if (!deskNode.children["Reminders"]) {
                 deskNode.children["Reminders"] = { type: 'link', action: "openApp('reminders')", icon: 'bell', color: 'text-yellow-400' };
             }
+            if (!deskNode.children["Paintings"]) {
+                deskNode.children["Paintings"] = { type: 'dir', children: {} };
+            }
             saveFS();
         }
 
@@ -918,7 +922,8 @@
                         <div class="h-10 border-b border-gray-700 flex items-center px-3 bg-[#252525] gap-2">
                             <button class="exp-up hover:bg-white/10 p-1 rounded text-gray-400"><i data-lucide="arrow-up" class="w-4 h-4"></i></button>
                             <input type="text" class="exp-path flex-1 bg-[#1e1e1e] border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-blue-500" readonly>
-                            <button class="exp-upload bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs flex items-center gap-1 shadow font-bold"><i data-lucide="upload" class="w-3 h-3"></i> Upload File</button>
+                            <button class="exp-new-folder bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1.5 rounded text-xs flex items-center gap-1 shadow font-bold"><i data-lucide="folder-plus" class="w-3 h-3"></i> New</button>
+                            <button class="exp-upload bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs flex items-center gap-1 shadow font-bold"><i data-lucide="upload" class="w-3 h-3"></i> Upload</button>
                             <input type="file" class="exp-file-input hidden" multiple>
                         </div>
                         <div class="flex-1 p-3 overflow-y-auto custom-scrollbar flex flex-wrap content-start gap-2 exp-view"></div>
@@ -929,6 +934,22 @@
                     const view = root.querySelector('.exp-view');
                     const pathInput = root.querySelector('.exp-path');
                     
+                    // New Folder Logic
+                    const newFolderBtn = root.querySelector('.exp-new-folder');
+                    newFolderBtn.onclick = () => {
+                        const name = prompt("Enter new folder name:", "New Folder");
+                        if (name) {
+                            const path = currentPath === '/' ? `/${name}` : `${currentPath}/${name}`;
+                            if (!fs.getPath(path)) {
+                                fs.createPath(path, 'dir');
+                                loadPath(currentPath);
+                                window.notify("File Explorer", `Created folder: ${name}`);
+                            } else {
+                                alert("A file or folder with that name already exists.");
+                            }
+                        }
+                    };
+
                     // Upload Logic
                     const uploadBtn = root.querySelector('.exp-upload');
                     const fileInput = root.querySelector('.exp-file-input');
@@ -1284,13 +1305,13 @@
                         if (name) {
                             let finalName = name;
                             if (!finalName.toLowerCase().endsWith('.png')) finalName += '.png';
-                            const path = '/home/user/Desktop/' + finalName;
-                            if(!fs.getPath('/home/user/Desktop')) fs.createPath('/home/user/Desktop', 'dir');
+                            const path = '/home/user/Desktop/Paintings/' + finalName;
+                            if(!fs.getPath('/home/user/Desktop/Paintings')) fs.createPath('/home/user/Desktop/Paintings', 'dir');
                             fs.createPath(path, 'file', dataUrl);
                             const node = fs.getPath(path);
                             if (node) { node.img = dataUrl; saveFS(); }
                             renderDesktop();
-                            window.notify("Paint", finalName + " saved to Desktop!");
+                            window.notify("Paint", finalName + " saved to Paintings folder!");
                         }
                     };
                 }
