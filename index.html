@@ -299,16 +299,32 @@
             if(duration > 0) setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, duration);
         };
 
-        window.addEventListener('message', (e) => {
-            if (e.data && e.data.type === 'INSTALL_NEXUS_APP') {
-                const { name, content, icon } = e.data;
-                if (!name || !content) return;
+        window.addEventListener('message', (event) => {
+            // Make sure we only react to the correct message type
+            if (event.data && event.data.type === 'NEXUS_OS_INSTALL_APP') {
+                const appData = event.data.appData;
+                
+                console.log("Nexus OS received app to install:", appData);
+                
+                // Logic to save 'appData' to OS filesystem and create a desktop icon
+                if (!appData || !appData.content) return;
+                
+                const name = appData.title || appData.name || 'New App';
                 const path = `/home/user/apps/${name}.html`;
+                
                 if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
-                fs.createPath(path, 'file', content);
-                fs.getPath('/home/user/Desktop').children[name] = { type: 'link', action: `openApp('runner', '${path}')`, icon: icon || 'box', color: 'text-green-400' };
+                fs.createPath(path, 'file', appData.content);
+                
+                fs.getPath('/home/user/Desktop').children[name] = { 
+                    type: 'link', 
+                    action: `openApp('runner', '${path}')`, 
+                    icon: appData.icon || 'box', 
+                    color: 'text-green-400' 
+                };
+                
+                saveFS();
                 renderDesktop();
-                window.notify("Store", `${name} installed successfully!`);
+                window.notify("App Installed", `${name} installed successfully!`);
             }
         });
 
