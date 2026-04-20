@@ -517,6 +517,26 @@
                 }
             } catch(e) {}
 
+            // --- NEW: Nexus Chat Auth Listener (Single Sign-On) ---
+            if (event.data && event.data.type === 'NEXUS_AUTH_REQUEST') {
+                console.log("Nexus OS received auth request from Chat App!");
+                if (userData && userData.username) {
+                    // Send credentials back to the iframe silently (Single Sign-On)
+                    event.source.postMessage({
+                        type: 'NEXUS_AUTH_SUCCESS',
+                        user: {
+                            username: userData.username,
+                            photo: userData.photo || `https://placehold.co/100x100/3b82f6/ffffff.png?text=${userData.username.charAt(0).toUpperCase()}`
+                        }
+                    }, '*');
+                    window.notify("Nexus Chat", "Authenticated automatically.");
+                } else {
+                    window.lockSystem(); // Force login if somehow not authenticated
+                    window.notify("Authentication Required", "Please login to Nexus OS first.");
+                }
+                return;
+            }
+
             if (event.data && event.data.type === 'NEXUS_OS_INSTALL_APP') {
                 const appData = event.data.appData || event.data;
                 const appContent = appData.content || appData.code;
