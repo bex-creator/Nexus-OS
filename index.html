@@ -844,6 +844,7 @@
                 "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus },
                 "Nexus Chat": { type: 'link', action: "openApp('runner', { name: 'Nexus Chat', url: 'https://benjaminlebeau731-afk.github.io/chat/?' })", icon: 'message-circle', color: 'text-green-400' },
                 "Web Search": { type: 'link', action: "openApp('runner', { name: 'Google Search', url: 'https://www.google.com/webhp?igu=1' })", icon: 'search', color: 'text-blue-400' },
+                "My Custom App": { type: 'link', action: "openApp('myCustomApp')", icon: 'star', color: 'text-yellow-400' },
                 "Paintings": { type: 'dir', children: {} }
             }},
             apps: { type: 'dir', children: {} },
@@ -884,6 +885,9 @@
             if (!deskNode.children["Nexus Chat"]) {
                 deskNode.children["Nexus Chat"] = { type: 'link', action: "openApp('runner', { name: 'Nexus Chat', url: 'https://benjaminlebeau731-afk.github.io/chat/?' })", icon: 'message-circle', color: 'text-green-400' };
             }
+            if (!deskNode.children["My Custom App"]) {
+                deskNode.children["My Custom App"] = { type: 'link', action: "openApp('myCustomApp')", icon: 'star', color: 'text-yellow-400' };
+            }
             if (!deskNode.children["Paintings"]) {
                 deskNode.children["Paintings"] = { type: 'dir', children: {} };
             }
@@ -909,6 +913,65 @@
         };
 
         const appDefinitions = {
+            // =========================================================================
+            // MY CUSTOM APP SPACE - PASTE YOUR HTML AND JAVASCRIPT HERE
+            // =========================================================================
+            myCustomApp: {
+                title: 'My Custom App',
+                icon: 'star',
+                color: 'text-yellow-400',
+                width: '800px',
+                height: '600px',
+                render: () => `
+                    <div class="h-full bg-white text-black p-4 overflow-y-auto">
+                        
+                        <!-- ========================================== -->
+                        <!-- PASTE YOUR HTML UI CODE BELOW THIS LINE    -->
+                        <!-- ========================================== -->
+                        
+                        
+                        
+                        <h1 class="text-3xl font-bold mb-4">Welcome to My Custom App!</h1>
+                        <p class="mb-4">You can replace this text with your own HTML code.</p>
+                        <button id="my-custom-btn" class="bg-blue-500 text-white px-4 py-2 rounded">Click Me</button>
+                        <div id="my-custom-output" class="mt-4 text-green-600 font-bold"></div>
+
+
+
+                        <!-- ========================================== -->
+                        <!-- PASTE YOUR HTML UI CODE ABOVE THIS LINE    -->
+                        <!-- ========================================== -->
+
+                    </div>
+                `,
+                init: (id, root) => {
+                    // ==========================================
+                    // PASTE YOUR JAVASCRIPT LOGIC BELOW THIS LINE
+                    // Note: Because this app runs inside Nexus OS, always use 
+                    // 'root.querySelector' instead of 'document.getElementById'
+                    // to find your HTML elements!
+                    // ==========================================
+                    
+
+
+                    const myBtn = root.querySelector('#my-custom-btn');
+                    const myOutput = root.querySelector('#my-custom-output');
+
+                    if (myBtn) {
+                        myBtn.onclick = () => {
+                            myOutput.innerText = "The button was clicked! Your custom JavaScript works!";
+                        };
+                    }
+
+
+
+                    // ==========================================
+                    // PASTE YOUR JAVASCRIPT LOGIC ABOVE THIS LINE
+                    // ==========================================
+                }
+            },
+            // =========================================================================
+
             explorer: {
                 title: 'File Explorer', icon: 'folder', color: 'text-yellow-500', width: '600px', height: '450px',
                 render: () => `<div class="h-full flex bg-[#1e1e1e] text-gray-300 font-sans overflow-hidden">
@@ -1448,10 +1511,10 @@
                 }
             },
 
-            // UPDATED RUNNER: Use 'src' for URLs to support games like Idle Miner, 'srcdoc' for code
+            // UPDATED RUNNER: Removed 'sandbox' to allow Firebase Auth, Storage, and APIs to function properly.
             runner: { 
                 title: 'App Runner', icon: 'play', color: 'text-orange-400', hidden: true, 
-                render: () => `<div class="h-full bg-white flex flex-col"><div class="bg-gray-100 p-1 flex justify-between items-center border-b px-2"><span class="runner-title text-xs text-gray-500">App</span></div><iframe class="runner-frame flex-1 w-full h-full border-none bg-white" sandbox="allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe></div>`, 
+                render: () => `<div class="h-full bg-white flex flex-col"><div class="bg-gray-100 p-1 flex justify-between items-center border-b px-2"><span class="runner-title text-xs text-gray-500">App</span></div><iframe class="runner-frame flex-1 w-full h-full border-none bg-white" allow="camera; microphone; display-capture; geolocation; clipboard-read; clipboard-write; fullscreen"></iframe></div>`, 
                 init: (id, root, arg) => { 
                     const iframe = root.querySelector('.runner-frame'); 
                     const title = root.querySelector('.runner-title'); 
