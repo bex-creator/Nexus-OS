@@ -426,14 +426,11 @@
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                 let successCount = 0;
                 Array.from(e.dataTransfer.files).forEach(file => {
-                    // BUG FIX: Directly divert audio to the Music App's IndexedDB to prevent LocalStorage crashes!
                     if (file.type.startsWith('audio/')) {
                         if (mediaManager) mediaManager.addTrack(file);
                         window.notify("Audio Redirected", `Added "${file.name}" to Nexus Music to save desktop space.`);
                         return;
                     }
-                    
-                    // BUG FIX: Strictly prevent massive files from crashing LocalStorage JSON serialize.
                     if (file.size > 2.5 * 1024 * 1024) {
                         alert(`Cannot upload "${file.name}". The file is over 2.5MB and exceeds the browser's storage limit for the desktop. Please use dedicated apps for large media.`);
                         return;
@@ -447,8 +444,6 @@
                             if(!fs.getPath('/home/user/Desktop')) fs.createPath('/home/user/Desktop', 'dir');
                             
                             fs.createPath(path, 'file', ev.target.result);
-                            
-                            // Attach generic media data if it's an image
                             const node = fs.getPath(path);
                             if (isImage && node) { node.img = ev.target.result; saveFS(); }
                             
@@ -472,16 +467,8 @@
 
         // Global Keyboard Shortcuts
         window.addEventListener('keydown', (e) => {
-            // Windows/Cmd key opens Start Menu
-            if (e.key === 'Meta') {
-                e.preventDefault();
-                document.getElementById('menu-btn').click();
-            }
-            // Escape closes menus
-            if (e.key === 'Escape') {
-                window.hideAllContextMenus();
-                document.getElementById('start-menu').classList.add('opacity-0', 'pointer-events-none');
-            }
+            if (e.key === 'Meta') { e.preventDefault(); document.getElementById('menu-btn').click(); }
+            if (e.key === 'Escape') { window.hideAllContextMenus(); document.getElementById('start-menu').classList.add('opacity-0', 'pointer-events-none'); }
         });
 
         window.toggleQuickSettings = () => {
@@ -513,86 +500,55 @@
             lucide.createIcons();
         };
 
-        // Volume slider sync
         document.getElementById('qs-volume').addEventListener('input', (e) => {
             const vol = e.target.value;
             document.getElementById('qs-vol-val').innerText = `${vol}%`;
             if (mediaManager && mediaManager.audio) mediaManager.audio.volume = vol / 100;
         });
 
-        // Add this anywhere in your Nexus OS scripts
         window.addEventListener('message', (event) => {
-            // --- NEW: Intercept Nexus Chat Link ---
             try {
                 const dataStr = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
                 if (dataStr && dataStr.includes('benjaminlebeau731-afk.github.io/chat')) {
                     console.log("Nexus Chat link detected via message!");
                     window.openApp('runner', { name: 'Nexus Chat Login', url: 'https://benjaminlebeau731-afk.github.io/chat/?' });
                     window.notify("Incoming Link", "Opening Nexus Chat...");
-                    return; // Stop here to prevent generic app installation logic
+                    return; 
                 }
-            } catch(e) {
-                // Ignore stringify errors for complex cyclic objects
-            }
+            } catch(e) {}
 
             if (event.data && event.data.type === 'NEXUS_OS_INSTALL_APP') {
-                // Fallback to event.data if event.data.appData is undefined
                 const appData = event.data.appData || event.data;
-                console.log("Nexus OS Background Install triggered!", appData);
-                
                 const appContent = appData.content || appData.code;
                 const appUrl = appData.url || appData.link;
                 const appName = appData.title || appData.name || 'New App';
-                
-                // Smart icon detection: Is it an image URL or a Lucide icon string?
                 const passedIcon = appData.icon || '';
                 const isImageUrl = passedIcon.startsWith('http') || passedIcon.startsWith('data:');
 
-                // Write your logic to save the app to the Nexus OS filesystem here!
                 if (appData && (appContent || appUrl)) {
                     if (appContent) {
                         const path = `/home/user/apps/${appName}.html`;
                         if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
                         fs.createPath(path, 'file', appContent);
-                        
-                        fs.getPath('/home/user/Desktop').children[appName] = { 
-                            type: 'link', 
-                            action: `openApp('runner', '${path}')`, 
-                            icon: isImageUrl ? undefined : (passedIcon || 'box'), 
-                            img: isImageUrl ? passedIcon : undefined,
-                            color: 'text-green-400' 
-                        };
-                        window.openApp('runner', path); // Make it pop up immediately!
+                        fs.getPath('/home/user/Desktop').children[appName] = { type: 'link', action: `openApp('runner', '${path}')`, icon: isImageUrl ? undefined : (passedIcon || 'box'), img: isImageUrl ? passedIcon : undefined, color: 'text-green-400' };
+                        window.openApp('runner', path); 
                     } else if (appUrl) {
-                        fs.getPath('/home/user/Desktop').children[appName] = { 
-                            type: 'link', 
-                            action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${appUrl}' })`, 
-                            icon: isImageUrl ? undefined : (passedIcon || 'globe'), 
-                            img: isImageUrl ? passedIcon : undefined,
-                            color: 'text-blue-400' 
-                        };
-                        window.openApp('runner', { name: appName, url: appUrl }); // Make it pop up immediately!
+                        fs.getPath('/home/user/Desktop').children[appName] = { type: 'link', action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${appUrl}' })`, icon: isImageUrl ? undefined : (passedIcon || 'globe'), img: isImageUrl ? passedIcon : undefined, color: 'text-blue-400' };
+                        window.openApp('runner', { name: appName, url: appUrl }); 
                     }
-                    
-                    saveFS();
-                    renderDesktop();
+                    saveFS(); renderDesktop();
                 }
-
                 alert(`Successfully downloaded ${appName} from NexusStore!`);
             }
         });
 
-        // URL Parameter App Installation
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const installAppStr = urlParams.get('install_app');
             if (installAppStr) {
                 const appData = JSON.parse(decodeURIComponent(escape(atob(installAppStr))));
-                console.log("App to install:", appData);
                 const { name, content, url, icon } = appData;
                 const appName = name || appData.title || 'New App';
-                
-                // Smart icon detection for URL installs
                 const passedIcon = icon || '';
                 const isImageUrl = passedIcon.startsWith('http') || passedIcon.startsWith('data:');
                 
@@ -601,37 +557,16 @@
                         const path = `/home/user/apps/${appName}.html`;
                         if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
                         fs.createPath(path, 'file', content);
-                        fs.getPath('/home/user/Desktop').children[appName] = { 
-                            type: 'link', 
-                            action: `openApp('runner', '${path}')`, 
-                            icon: isImageUrl ? undefined : (passedIcon || 'box'), 
-                            img: isImageUrl ? passedIcon : undefined,
-                            color: 'text-green-400' 
-                        };
+                        fs.getPath('/home/user/Desktop').children[appName] = { type: 'link', action: `openApp('runner', '${path}')`, icon: isImageUrl ? undefined : (passedIcon || 'box'), img: isImageUrl ? passedIcon : undefined, color: 'text-green-400' };
                     } else if (url) {
-                        fs.getPath('/home/user/Desktop').children[appName] = { 
-                            type: 'link', 
-                            action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${url}' })`, 
-                            icon: isImageUrl ? undefined : (passedIcon || 'globe'), 
-                            img: isImageUrl ? passedIcon : undefined,
-                            color: 'text-blue-400' 
-                        };
+                        fs.getPath('/home/user/Desktop').children[appName] = { type: 'link', action: `openApp('runner', { name: '${appName.replace(/'/g, "\\'")}', url: '${url}' })`, icon: isImageUrl ? undefined : (passedIcon || 'globe'), img: isImageUrl ? passedIcon : undefined, color: 'text-blue-400' };
                     }
                     saveFS();
-                    
-                    // Delay notification slightly so it shows up after the boot screen finishes
-                    setTimeout(() => {
-                        window.notify("App Installed", `${appName} was installed from URL!`);
-                        if (typeof renderDesktop === 'function') renderDesktop();
-                    }, 2000);
-                    
-                    // Clean up the URL so it doesn't reinstall on page refresh
+                    setTimeout(() => { window.notify("App Installed", `${appName} was installed from URL!`); if (typeof renderDesktop === 'function') renderDesktop(); }, 2000);
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             }
-        } catch(e) {
-            console.error("Error parsing install_app URL parameter:", e);
-        }
+        } catch(e) { }
 
         window.toggleWorkspace = () => {
             currentWorkspace = currentWorkspace === 1 ? 2 : 1;
@@ -697,7 +632,6 @@
                     tracks.forEach(t => {
                         try {
                             const url = URL.createObjectURL(t.file);
-                            // Prevent duplicates if already loaded
                             if (!mediaManager.playlist.some(p => p.title === t.title && p.artist === t.artist)) {
                                 mediaManager.playlist.push({
                                     title: t.title,
@@ -741,7 +675,6 @@
                     if(mediaManager.audio.duration) mediaManager.audio.currentTime = (e.target.value / 100) * mediaManager.audio.duration;
                 });
 
-                // Connect to the host device's physical media controls
                 if ('mediaSession' in navigator) {
                     navigator.mediaSession.setActionHandler('play', () => mediaManager.audio.play());
                     navigator.mediaSession.setActionHandler('pause', () => mediaManager.audio.pause());
@@ -758,7 +691,6 @@
                     });
                 }
                 
-                // Initialize DB and load saved tracks
                 try {
                     await mediaManager.initDB();
                     mediaManager.loadSavedTracks();
@@ -780,12 +712,10 @@
                 if(window.refreshMusicAppUI) window.refreshMusicAppUI();
                 if(!silent) window.notify("Music Uploaded", `Added ${file.name} to Library`, 2000);
                 
-                // Persist the track object in IndexedDB
                 if (mediaManager.db) {
                     try {
                         const transaction = mediaManager.db.transaction(["tracks"], "readwrite");
                         const store = transaction.objectStore("tracks");
-                        // Store as Blob to ensure strict cross-browser IndexedDB compatibility
                         const blob = new Blob([file], { type: file.type || 'audio/mpeg' });
                         store.add({ file: blob, title, artist, cover });
                     } catch(e) { console.warn("Could not save track to DB", e); }
@@ -809,7 +739,6 @@
                     if(img && track.cover) img.src = track.cover;
                 }
 
-                // Update the host device's media overlay
                 if ('mediaSession' in navigator) {
                     navigator.mediaSession.metadata = new MediaMetadata({
                         title: track.title,
@@ -893,6 +822,7 @@
                 "Music": { type: 'link', action: "openApp('music')", icon: 'music', color: 'text-indigo-400' },
                 "Reminders": { type: 'link', action: "openApp('reminders')", icon: 'bell', color: 'text-yellow-400' },
                 "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus },
+                "Nexus Chat": { type: 'link', action: "openApp('runner', { name: 'Nexus Chat', url: 'https://benjaminlebeau731-afk.github.io/chat/?' })", icon: 'message-circle', color: 'text-green-400' },
                 "Web Search": { type: 'link', action: "openApp('runner', { name: 'Google Search', url: 'https://www.google.com/webhp?igu=1' })", icon: 'search', color: 'text-blue-400' },
                 "Paintings": { type: 'dir', children: {} }
             }},
@@ -929,6 +859,10 @@
             }
             if (!deskNode.children["Utility Store"]) {
                 deskNode.children["Utility Store"] = { type: 'link', action: "openApp('utilityStore')", icon: 'wrench', color: 'text-gray-300' };
+            }
+            // Add Nexus Chat to Desktop For Users Who Already Saved OS FS State
+            if (!deskNode.children["Nexus Chat"]) {
+                deskNode.children["Nexus Chat"] = { type: 'link', action: "openApp('runner', { name: 'Nexus Chat', url: 'https://benjaminlebeau731-afk.github.io/chat/?' })", icon: 'message-circle', color: 'text-green-400' };
             }
             if (!deskNode.children["Paintings"]) {
                 deskNode.children["Paintings"] = { type: 'dir', children: {} };
@@ -979,7 +913,6 @@
                     const view = root.querySelector('.exp-view');
                     const pathInput = root.querySelector('.exp-path');
                     
-                    // New Folder Logic
                     const newFolderBtn = root.querySelector('.exp-new-folder');
                     newFolderBtn.onclick = () => {
                         const name = prompt("Enter new folder name:", "New Folder");
@@ -995,7 +928,6 @@
                         }
                     };
 
-                    // Upload Logic
                     const uploadBtn = root.querySelector('.exp-upload');
                     const fileInput = root.querySelector('.exp-file-input');
                     uploadBtn.onclick = () => fileInput.click();
@@ -1005,14 +937,11 @@
                         
                         let successCount = 0;
                         files.forEach(file => {
-                            // BUG FIX: Directly divert audio to the Music App's IndexedDB to prevent LocalStorage crashes!
                             if (file.type.startsWith('audio/')) {
                                 if (mediaManager) mediaManager.addTrack(file);
                                 window.notify("Audio Redirected", `Added "${file.name}" to Nexus Music to save space.`);
                                 return;
                             }
-                            
-                            // BUG FIX: Strictly prevent massive files from crashing LocalStorage JSON serialize.
                             if (file.size > 2.5 * 1024 * 1024) {
                                 alert(`Cannot upload "${file.name}". The file is over 2.5MB and exceeds the browser's storage limit for the file system. Please use dedicated apps for large media.`);
                                 return;
@@ -1033,7 +962,7 @@
                                         saveFS();
                                         successCount++;
                                         if (successCount === files.length) {
-                                            loadPath(currentPath); // Refresh view
+                                            loadPath(currentPath); 
                                             window.notify("Upload Complete", `Successfully uploaded ${files.length} file(s).`);
                                         }
                                     }
@@ -1044,10 +973,10 @@
                             if(file.type.startsWith('text/') || file.name.endsWith('.html') || file.name.endsWith('.md')) {
                                 reader.readAsText(file);
                             } else {
-                                reader.readAsDataURL(file); // Base64 encoding for media files
+                                reader.readAsDataURL(file);
                             }
                         });
-                        e.target.value = ''; // Reset input
+                        e.target.value = ''; 
                     };
 
                     const loadPath = (p) => {
@@ -1060,7 +989,6 @@
                             let icon = data.type === 'dir' ? 'folder' : (data.type === 'link' ? (data.icon||'external-link') : 'file-code');
                             let color = data.type === 'dir' ? 'text-yellow-500' : 'text-blue-400';
                             
-                            // Smart icon detection for generic files
                             if (data.type === 'file' && typeof data.content === 'string') {
                                 if (data.content.startsWith('data:audio/')) { icon = 'music'; color = 'text-indigo-400'; }
                                 else if (data.content.startsWith('data:video/')) { icon = 'video'; color = 'text-purple-400'; }
@@ -1076,7 +1004,6 @@
                                 if(data.type === 'dir') loadPath(p + '/' + name);
                                 else if(data.type === 'link' && data.action) eval(data.action);
                                 else if(data.type === 'file') {
-                                    // Open media correctly instead of as code
                                     if (typeof data.content === 'string') {
                                         if (data.content.startsWith('data:video/')) {
                                             openApp('videoPlayer', { name: name, url: data.content });
@@ -1220,11 +1147,21 @@
                     const createTab = (url = 'home') => { const tId = 'tab-' + (++tabCounter); const tabBtn = document.createElement('div'); tabBtn.className = 'chrome-tab group flex items-center justify-between gap-2 px-3 py-1.5 text-cyan-700 hover:bg-cyan-900/30 rounded-t-md min-w-[140px] max-w-[220px] cursor-pointer border-t border-l border-r border-transparent relative shrink-0 transition-all mt-1'; tabBtn.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i data-lucide="zap" class="w-3 h-3 shrink-0 tab-icon"></i><span class="truncate text-xs tab-title">New Tab</span></div><button class="close-tab hover:bg-cyan-500/30 hover:text-cyan-200 text-cyan-600 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all shrink-0"><i data-lucide="x" class="w-3 h-3"></i></button>`; tabBar.insertBefore(tabBtn, newTabBtn); const contentDiv = document.createElement('div'); contentDiv.className = 'absolute inset-0 w-full h-full hidden bg-white'; const frame = document.createElement('iframe'); frame.className = 'w-full h-full border-none hidden bg-white'; frame.sandbox = 'allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts'; const mock = document.createElement('div'); mock.className = 'absolute inset-0 bg-[#0a0a0f] overflow-y-auto hidden'; contentDiv.appendChild(frame); contentDiv.appendChild(mock); contentContainer.appendChild(contentDiv); tabs[tId] = { btn: tabBtn, content: contentDiv, frame, mock, url: '', title: 'New Tab' }; tabBtn.onmousedown = (e) => { if(!e.target.closest('.close-tab')) switchTab(tId); }; tabBtn.querySelector('.close-tab').onmousedown = (e) => { e.stopPropagation(); closeTab(tId); }; lucide.createIcons({root: tabBtn}); switchTab(tId); load(url, tId); }; 
                     const switchTab = (tId) => { if(!tabs[tId]) return; activeTabId = tId; Object.keys(tabs).forEach(id => { const t = tabs[id]; if(id === tId) { t.btn.classList.add('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.remove('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.remove('hidden'); input.value = (t.url === 'home') ? '' : t.url; } else { t.btn.classList.remove('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.add('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.add('hidden'); } }); }; 
                     const closeTab = (tId) => { const t = tabs[tId]; if(!t) return; t.btn.remove(); t.content.remove(); delete tabs[tId]; const remaining = Object.keys(tabs); if(remaining.length === 0) { createTab('home'); } else if (activeTabId === tId) { switchTab(remaining[remaining.length - 1]); } }; 
-                    const load = (url, tId = activeTabId) => { const t = tabs[tId]; if(!t) return; let target = url.trim(); t.url = target; const titleEl = t.btn.querySelector('.tab-title'); const iconEl = t.btn.querySelector('.tab-icon'); if(target === 'home' || !target) { t.title = 'New Tab'; titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'zap'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'zap'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } t.mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full relative overflow-hidden"><div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/20 via-[#0a0a0f] to-[#0a0a0f]"></div><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none flex-col gap-2"><div class="w-20 h-20 rounded-full border-2 border-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.4)]"><i data-lucide="zap" class="w-10 h-10 text-cyan-400"></i></div><span class="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-cyan-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]">NEXUS</span></div><div class="w-full max-w-lg relative group"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-600 group-focus-within:text-cyan-400 transition-colors w-5 h-5"></i><input type="text" class="home-search w-full bg-[#13141c]/80 border border-cyan-900 rounded-lg py-4 pl-12 pr-4 text-cyan-50 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:border-cyan-700 transition-all backdrop-blur-sm" placeholder="Search Google securely..."></div></div></div>`; setTimeout(() => { const hs = t.mock.querySelector('.home-search'); if(hs && activeTabId === tId){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value, tId); }}; } }, 10); t.mock.classList.remove('hidden'); t.frame.classList.add('hidden'); lucide.createIcons({root: t.mock}); if(activeTabId === tId) input.value = ''; return; } if(target.startsWith('/')) { const file = fs.getPath(target); t.frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); if(activeTabId === tId) input.value = "file://" + target; t.title = target.split('/').pop(); titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'file-code'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'file-code'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(target); } } t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); 
+                    const load = (url, tId = activeTabId) => { 
+                        const t = tabs[tId]; if(!t) return; 
+                        let target = url.trim(); 
+                        
+                        if (target.includes('benjaminlebeau731-afk.github.io/chat')) { 
+                            window.openApp('runner', { name: 'Nexus Chat', url: 'https://benjaminlebeau731-afk.github.io/chat/?' }); 
+                            window.notify("Nexus Link Detected", "Opening Nexus Chat..."); 
+                            if(activeTabId === tId && input.value === target) input.value = ''; 
+                            return; 
+                        }
+
+                        t.url = target; const titleEl = t.btn.querySelector('.tab-title'); const iconEl = t.btn.querySelector('.tab-icon'); if(target === 'home' || !target) { t.title = 'New Tab'; titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'zap'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'zap'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } t.mock.innerHTML = `<div class="flex flex-col items-center justify-center h-full relative overflow-hidden"><div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/20 via-[#0a0a0f] to-[#0a0a0f]"></div><div class="relative flex flex-col items-center z-10 w-full px-6"><div class="flex items-center justify-center mb-8 select-none flex-col gap-2"><div class="w-20 h-20 rounded-full border-2 border-cyan-500 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.4)]"><i data-lucide="zap" class="w-10 h-10 text-cyan-400"></i></div><span class="text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-cyan-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]">NEXUS</span></div><div class="w-full max-w-lg relative group"><i data-lucide="search" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-600 group-focus-within:text-cyan-400 transition-colors w-5 h-5"></i><input type="text" class="home-search w-full bg-[#13141c]/80 border border-cyan-900 rounded-lg py-4 pl-12 pr-4 text-cyan-50 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:border-cyan-700 transition-all backdrop-blur-sm" placeholder="Search Google securely..."></div></div></div>`; setTimeout(() => { const hs = t.mock.querySelector('.home-search'); if(hs && activeTabId === tId){ hs.focus(); hs.onkeydown = (e) => { if(e.key === 'Enter') { input.value = hs.value; load(hs.value, tId); }}; } }, 10); t.mock.classList.remove('hidden'); t.frame.classList.add('hidden'); lucide.createIcons({root: t.mock}); if(activeTabId === tId) input.value = ''; return; } if(target.startsWith('/')) { const file = fs.getPath(target); t.frame.srcdoc = (file && file.type === 'file') ? file.content : "File not found"; t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); if(activeTabId === tId) input.value = "file://" + target; t.title = target.split('/').pop(); titleEl.innerText = t.title; if(iconEl && iconEl.tagName === 'I') { iconEl.setAttribute('data-lucide', 'file-code'); lucide.createIcons({root: t.btn}); } else if (iconEl && iconEl.tagName === 'IMG') { const newI = document.createElement('i'); newI.setAttribute('data-lucide', 'file-code'); newI.className = 'w-3 h-3 shrink-0 tab-icon text-cyan-500'; iconEl.replaceWith(newI); lucide.createIcons({root: t.btn}); } return; } if(!target.startsWith('http') && !target.startsWith('file://')) { if(target.includes('.') && !target.includes(' ')) { target = 'https://' + target; } else { target = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(target); } } t.mock.classList.add('hidden'); t.frame.classList.remove('hidden'); 
                     
                     let finalUrl = target;
                     
-                    // Special YouTube Bypass using Piped (piped.video)
                     if (target.includes('youtube.com') || target.includes('youtu.be')) {
                         finalUrl = target.replace(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)/i, 'https://piped.video');
                         t.frame.removeAttribute('srcdoc');
