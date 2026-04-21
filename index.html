@@ -1511,7 +1511,7 @@
                 }
             },
 
-            // UPDATED RUNNER: Removed 'sandbox' to allow Firebase Auth, Storage, and APIs to function properly.
+            // UPDATED RUNNER: Uses Blob URLs to allow Firebase to access IndexedDB
             runner: { 
                 title: 'App Runner', icon: 'play', color: 'text-orange-400', hidden: true, 
                 render: () => `<div class="h-full bg-white flex flex-col"><div class="bg-gray-100 p-1 flex justify-between items-center border-b px-2"><span class="runner-title text-xs text-gray-500">App</span></div><iframe class="runner-frame flex-1 w-full h-full border-none bg-white" allow="camera; microphone; display-capture; geolocation; clipboard-read; clipboard-write; fullscreen"></iframe></div>`, 
@@ -1524,18 +1524,24 @@
                     iframe.src = "about:blank";
                     iframe.removeAttribute("srcdoc");
 
+                    // Renders app via Blob to preserve origin and storage access for Firebase
+                    const loadWithStorageAccess = (htmlContent) => {
+                        const blob = new Blob([htmlContent], { type: 'text/html' });
+                        iframe.src = URL.createObjectURL(blob);
+                    };
+
                     if (arg && typeof arg === 'object') { 
                         title.innerText = arg.name || "Preview"; 
                         if (arg.url) { 
                             iframe.src = arg.url; 
                         } else if (arg.content) { 
-                            iframe.srcdoc = arg.content; 
+                            loadWithStorageAccess(arg.content); 
                         } 
                     } else if (typeof arg === 'string') { 
                         title.innerText = arg; 
                         const f = fs.getPath(arg); 
                         if(f && f.type === 'file') { 
-                            iframe.srcdoc = f.content; 
+                            loadWithStorageAccess(f.content); 
                         } else { 
                             iframe.srcdoc = "File not found."; 
                         } 
