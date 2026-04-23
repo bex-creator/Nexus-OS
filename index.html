@@ -811,6 +811,86 @@
         };
         window.mediaManager = mediaManager;
 
+        const chatManager = {
+            ws: null,
+            myClientId: localStorage.getItem('nexus_msg_client_id') || Math.random().toString(36).substring(2, 10),
+            myName: localStorage.getItem('nexus_msg_name_v2') || '',
+            init: () => {
+                localStorage.setItem('nexus_msg_client_id', chatManager.myClientId);
+                chatManager.reconnect();
+            },
+            updateName: (name) => {
+                chatManager.myName = name;
+                localStorage.setItem('nexus_msg_name_v2', name);
+            },
+            reconnect: () => {
+                if (chatManager.ws) chatManager.ws.close();
+                const rooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
+                if (rooms.length === 0) return;
+                const topics = rooms.map(r => r.topic).join(',');
+                
+                chatManager.ws = new WebSocket(`wss://ntfy.sh/${topics}/ws`);
+                
+                chatManager.ws.onopen = () => {
+                    if (window.nexusChatStatusCallback) window.nexusChatStatusCallback(true);
+                };
+
+                chatManager.ws.onerror = () => {
+                    if (window.nexusChatStatusCallback) window.nexusChatStatusCallback(false);
+                };
+
+                chatManager.ws.onclose = () => {
+                    if (window.nexusChatStatusCallback) window.nexusChatStatusCallback(false);
+                };
+
+                chatManager.ws.onmessage = (e) => {
+                    const data = JSON.parse(e.data);
+                    if (data.event === 'message') {
+                        try {
+                            const payload = JSON.parse(data.message);
+                            const roomsList = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
+                            const targetRoom = roomsList.find(r => r.topic === data.topic);
+                            
+                            if (targetRoom) {
+                                let history = JSON.parse(localStorage.getItem('nexus_msg_history_v3') || '{}');
+                                if (!history[targetRoom.id]) history[targetRoom.id] = [];
+                                
+                                const isDuplicate = history[targetRoom.id].some(m => m.timestamp === payload.timestamp && m.sender === payload.sender && m.text === payload.text);
+                                const isMe = payload.sender === chatManager.myName && payload.clientId === chatManager.myClientId;
+                                
+                                if (!isDuplicate) {
+                                    history[targetRoom.id].push(payload);
+                                    localStorage.setItem('nexus_msg_history_v3', JSON.stringify(history));
+                                    
+                                    if (window.nexusChatAppCallback) {
+                                        window.nexusChatAppCallback(payload, targetRoom);
+                                    } else if (!isMe) {
+                                        // App is closed or hidden, notify globally via OS
+                                        let cleanText = payload.text;
+                                        if (cleanText.startsWith('[IMAGE:')) cleanText = '🖼️ Sent an image';
+                                        
+                                        window.notify(`New message in ${targetRoom.name}`, `<b>${payload.sender}:</b> ${cleanText}`, 6000);
+                                        try { 
+                                            const sfx = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3');
+                                            sfx.volume = 0.6;
+                                            sfx.play(); 
+                                        } catch(e) {}
+                                    }
+                                }
+                            }
+                        } catch(err) {}
+                    }
+                };
+            },
+            send: (topic, payload) => {
+                fetch(`https://ntfy.sh/${topic}`, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                }).catch(err => console.error("Chat Error", err));
+            }
+        };
+        window.chatManager = chatManager;
+
         function renderCalendar() {
             const date = new Date(); const year = date.getFullYear(); const month = date.getMonth();
             const calMonth = document.getElementById('cal-month'); const calYear = document.getElementById('cal-year');
@@ -842,7 +922,7 @@
                 "Music": { type: 'link', action: "openApp('music')", icon: 'music', color: 'text-indigo-400' },
                 "Reminders": { type: 'link', action: "openApp('reminders')", icon: 'bell', color: 'text-yellow-400' },
                 "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus },
-                "Global Chat": { type: 'link', action: "openApp('messagesApp')", icon: 'globe-2', color: 'text-blue-500' },
+                "Global Chat": { type: 'link', action: "openApp('messagesApp')", icon: 'message-square', color: 'text-blue-500' },
                 "Web Search": { type: 'link', action: "openApp('runner', { name: 'Google Search', url: 'https://www.google.com/webhp?igu=1' })", icon: 'search', color: 'text-blue-400' },
                 "My Custom App": { type: 'link', action: "openApp('myCustomApp')", icon: 'star', color: 'text-yellow-400' },
                 "Paintings": { type: 'dir', children: {} }
@@ -887,7 +967,7 @@
             if (deskNode.children["Messages"]) delete deskNode.children["Messages"];
             
             if (!deskNode.children["Global Chat"]) {
-                deskNode.children["Global Chat"] = { type: 'link', action: "openApp('messagesApp')", icon: 'globe-2', color: 'text-blue-500' };
+                deskNode.children["Global Chat"] = { type: 'link', action: "openApp('messagesApp')", icon: 'message-square', color: 'text-blue-500' };
             }
             
             if (!deskNode.children["My Custom App"]) {
@@ -912,280 +992,607 @@
         };
 
         const appDefinitions = {
-            // =========================================================================
-            // MY CUSTOM APP SPACE
-            // =========================================================================
-            myCustomApp: {
-                title: 'My Custom App',
-                icon: 'star',
-                color: 'text-yellow-400',
-                width: '800px',
-                height: '600px',
-                render: () => `
-                    <div class="h-full bg-white text-black p-4 overflow-y-auto">
-                        <h1 class="text-3xl font-bold mb-4">Welcome to My Custom App!</h1>
-                        <p class="mb-4">You can replace this text with your own HTML code.</p>
-                        <button id="my-custom-btn" class="bg-blue-500 text-white px-4 py-2 rounded">Click Me</button>
-                        <div id="my-custom-output" class="mt-4 text-green-600 font-bold"></div>
-                    </div>
-                `,
-                init: (id, root) => {
-                    const myBtn = root.querySelector('#my-custom-btn');
-                    const myOutput = root.querySelector('#my-custom-output');
-                    if (myBtn) {
-                        myBtn.onclick = () => {
-                            myOutput.innerText = "The button was clicked! Your custom JavaScript works!";
-                        };
+                myCustomApp: {
+                    title: 'My Custom App',
+                    icon: 'star',
+                    color: 'text-yellow-400',
+                    width: '800px',
+                    height: '600px',
+                    render: () => `
+                        <div class="h-full bg-white text-black p-4 overflow-y-auto">
+                            <h1 class="text-3xl font-bold mb-4">Welcome to My Custom App!</h1>
+                            <p class="mb-4">You can replace this text with your own HTML code.</p>
+                            <button id="my-custom-btn" class="bg-blue-500 text-white px-4 py-2 rounded">Click Me</button>
+                            <div id="my-custom-output" class="mt-4 text-green-600 font-bold"></div>
+                        </div>
+                    `,
+                    init: (id, root) => {
+                        const myBtn = root.querySelector('#my-custom-btn');
+                        const myOutput = root.querySelector('#my-custom-output');
+                        if (myBtn) {
+                            myBtn.onclick = () => {
+                                myOutput.innerText = "The button was clicked! Your custom JavaScript works!";
+                            };
+                        }
                     }
-                }
-            },
-            // =========================================================================
+                },
+                // =========================================================================
 
             messagesApp: {
-                title: 'Global Chat', icon: 'globe-2', color: 'text-blue-500', width: '450px', height: '600px',
+                title: 'Messages', icon: 'message-square', color: 'text-blue-500', width: '850px', height: '600px',
                 render: () => `
-                    <div class="h-full bg-white dark:bg-[#121212] flex flex-col font-sans relative text-gray-900 dark:text-gray-100 transition-colors overflow-hidden">
-                        <!-- SETUP VIEW -->
-                        <div id="msg-setup" class="absolute inset-0 z-20 bg-white dark:bg-[#121212] flex flex-col items-center justify-center p-6">
-                            <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-6 shadow-md">
-                                <i data-lucide="globe-2" class="w-10 h-10 text-blue-600 dark:text-blue-400"></i>
+                    <div class="h-full bg-[#f8fafd] dark:bg-[#131314] flex font-sans relative text-gray-900 dark:text-gray-100 transition-colors overflow-hidden selection:bg-blue-200/50">
+                        <!-- Setup View -->
+                        <div id="msg-setup" class="absolute inset-0 z-50 bg-[#f8fafd] dark:bg-[#131314] flex flex-col items-center justify-center p-6 hidden">
+                            <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
+                                <i data-lucide="message-square" class="w-10 h-10 text-blue-600 dark:text-blue-400"></i>
                             </div>
-                            <h2 class="text-2xl font-semibold mb-2">Nexus Global Chat</h2>
-                            <p class="text-gray-500 dark:text-gray-400 text-center text-sm mb-8">Join the public serverless chat room. No IDs required.</p>
-                            <input type="text" id="msg-name-input" class="w-full max-w-xs bg-gray-100 dark:bg-gray-800 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-center mb-4 text-lg" placeholder="Your display name">
-                            <button id="msg-setup-btn" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 font-medium transition-colors shadow-lg">Join World</button>
+                            <h2 class="text-2xl font-normal mb-2 text-gray-800 dark:text-gray-200">Welcome to Messages</h2>
+                            <p class="text-gray-500 dark:text-gray-400 text-center text-sm mb-8">Set your profile name to start chatting securely.</p>
+                            <div class="bg-[#e9eef6] dark:bg-[#1e1f20] rounded-t-lg rounded-b-none border-b-2 border-blue-600 px-4 py-2 w-full max-w-xs mb-6 transition-colors">
+                                <label class="text-xs text-blue-600 dark:text-blue-400 font-medium">Display Name</label>
+                                <input type="text" id="msg-name-input" class="w-full bg-transparent border-none outline-none text-base pb-1 focus:ring-0">
+                            </div>
+                            <button id="msg-setup-btn" class="bg-[#0b57d0] hover:bg-[#0842a0] dark:bg-[#a8c7fa] dark:hover:bg-[#8ab4f8] text-white dark:text-[#062e6f] rounded-full px-8 py-3 font-medium transition-colors shadow-sm">Get Started</button>
                         </div>
 
-                        <!-- CHAT VIEW -->
-                        <div id="msg-chat" class="absolute inset-0 z-10 flex flex-col hidden">
-                            <div class="h-16 px-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 shrink-0 bg-gray-50 dark:bg-[#181818]">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white shadow-md">
-                                        <i data-lucide="globe-2" class="w-5 h-5"></i>
-                                    </div>
-                                    <div>
-                                        <div class="font-bold text-base leading-tight">Public World Chat</div>
-                                        <div class="text-xs text-green-500 flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div> Live</div>
-                                    </div>
-                                </div>
-                                <div class="flex gap-1">
-                                    <button id="msg-contacts-btn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-blue-500" title="Contacts">
-                                        <i data-lucide="users" class="w-5 h-5"></i>
-                                    </button>
-                                    <button id="msg-leave-btn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-red-500" title="Leave">
-                                        <i data-lucide="log-out" class="w-5 h-5"></i>
-                                    </button>
-                                </div>
-                            </div>
+                        <!-- Main Two-Pane View -->
+                        <div id="msg-main" class="flex w-full h-full hidden relative">
                             
-                            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3 relative" id="msg-messages-container">
-                                <div class="text-center text-gray-400 text-xs my-2">Welcome to the global room. Messages are not saved permanently.</div>
+                            <!-- Sidebar -->
+                            <div id="msg-sidebar" class="w-full sm:w-[320px] border-r border-gray-200 dark:border-gray-800 flex flex-col bg-[#f8fafd] dark:bg-[#131314] shrink-0 transition-transform duration-300 absolute sm:relative z-20 h-full">
+                                <div class="h-16 px-4 flex items-center justify-between shrink-0">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-[#004a77] text-[#c2e7ff] flex items-center justify-center font-bold text-sm shadow-sm" id="msg-my-avatar"></div>
+                                        <span class="font-medium text-lg text-gray-800 dark:text-gray-200">Messages</span>
+                                    </div>
+                                    <i data-lucide="more-vertical" class="w-5 h-5 text-gray-500 cursor-pointer hover:text-gray-800 dark:hover:text-gray-200 transition-colors"></i>
+                                </div>
+                                <div class="px-4 pb-2">
+                                    <div class="bg-[#e9eef6] dark:bg-[#1e1f20] rounded-full flex items-center px-4 py-3 gap-3 border border-transparent focus-within:border-blue-200 dark:focus-within:border-blue-900/50 transition-colors">
+                                        <i data-lucide="search" class="w-4 h-4 text-gray-500"></i>
+                                        <input type="text" class="bg-transparent border-none outline-none text-[15px] w-full placeholder-gray-500 dark:text-gray-200" placeholder="Search conversations">
+                                    </div>
+                                </div>
+                                <div id="msg-room-list" class="flex-1 overflow-y-auto custom-scrollbar px-2 pb-20 flex flex-col gap-1 mt-2"></div>
+                                
+                                <!-- Floating Action Button -->
+                                <button id="msg-fab" class="absolute bottom-6 right-6 w-14 h-14 bg-[#c2e7ff] dark:bg-[#004a77] text-[#001d35] dark:text-[#c2e7ff] rounded-[1.25rem] flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all z-30">
+                                    <i data-lucide="message-square-plus" class="w-6 h-6"></i>
+                                </button>
                             </div>
 
-                            <!-- Contacts Overlay Panel -->
-                            <div id="msg-contacts-panel" class="absolute top-16 bottom-14 right-0 w-64 bg-gray-50 dark:bg-[#1a1a1a] border-l border-gray-200 dark:border-gray-800 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col z-30">
-                                <div class="p-3 border-b border-gray-200 dark:border-gray-800 font-bold flex items-center justify-between">
-                                    My Contacts
-                                    <button id="msg-close-contacts" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            <!-- Chat Area -->
+                            <div id="msg-chat-area" class="flex-1 flex flex-col bg-white dark:bg-[#0e0e0f] relative sm:flex hidden w-full h-full">
+                                <div class="h-16 px-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800/60 shrink-0 bg-white/90 dark:bg-[#0e0e0f]/90 backdrop-blur z-10">
+                                    <div class="flex items-center gap-3">
+                                        <button id="msg-back-btn" class="sm:hidden p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300">
+                                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                                        </button>
+                                        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center font-bold shadow-sm" id="msg-active-avatar"></div>
+                                        <div>
+                                            <div class="font-bold text-gray-900 dark:text-gray-100 leading-tight text-[15px]" id="msg-active-name">Select a chat</div>
+                                            <div class="text-[11px] text-green-600 dark:text-green-400 font-medium flex items-center gap-1 hidden" id="msg-active-status"><div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>Connected</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-1 text-gray-600 dark:text-gray-400">
+                                        <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"><i data-lucide="phone" class="w-5 h-5"></i></button>
+                                        <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"><i data-lucide="video" class="w-5 h-5"></i></button>
+                                        <button id="msg-invite-btn" class="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-colors hidden" title="Invite Friends"><i data-lucide="user-plus" class="w-5 h-5"></i></button>
+                                        <button id="msg-delete-room-btn" class="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors hidden"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                                    </div>
                                 </div>
-                                <div class="p-3 flex gap-2 border-b border-gray-200 dark:border-gray-800 shrink-0">
-                                    <input type="text" id="msg-add-contact-inp" class="flex-1 bg-white dark:bg-black/50 border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500" placeholder="Enter friend's name...">
-                                    <button id="msg-add-contact-btn" class="bg-blue-600 hover:bg-blue-700 transition text-white px-3 py-1.5 rounded text-sm font-bold shadow-md"><i data-lucide="user-plus" class="w-4 h-4"></i></button>
+                                
+                                <div id="msg-messages-container" class="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-1.5 relative">
+                                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none" id="msg-empty-state">
+                                        <div class="text-center text-gray-400 flex flex-col items-center">
+                                            <div class="w-24 h-24 bg-[#f0f4f9] dark:bg-[#1e1f20] rounded-full flex items-center justify-center mb-4">
+                                                <i data-lucide="message-square" class="w-10 h-10 opacity-40"></i>
+                                            </div>
+                                            <span class="font-medium text-gray-600 dark:text-gray-300">Your messages</span>
+                                            <span class="text-xs mt-1 max-w-xs">Select a conversation or start a new private chat.</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div id="msg-contacts-list" class="flex-1 overflow-y-auto p-2 custom-scrollbar flex flex-col gap-1"></div>
+
+                                <!-- Emoji Picker Popup -->
+                                <div id="msg-emoji-picker" class="absolute bottom-[4.5rem] right-4 bg-white dark:bg-[#1e1e1f] border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-3 w-64 hidden grid grid-cols-5 gap-1 z-20 transition-all">
+                                    <!-- Populated by JS -->
+                                </div>
+                                
+                                <div class="p-3 shrink-0 bg-white dark:bg-[#0e0e0f] border-t border-transparent relative z-10">
+                                    <div class="flex items-center gap-1 bg-[#f0f4f9] dark:bg-[#1e1f20] rounded-[2rem] pl-2 pr-1.5 py-1.5 focus-within:bg-[#e9eef6] dark:focus-within:bg-[#282a2c] transition-colors">
+                                        <button id="msg-attach-btn" class="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Attach File"><i data-lucide="plus-circle" class="w-6 h-6"></i></button>
+                                        <button id="msg-image-btn" class="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Send Image URL"><i data-lucide="image" class="w-5 h-5"></i></button>
+                                        <input type="text" id="msg-input" class="flex-1 bg-transparent border-none outline-none text-[15px] placeholder-gray-500 dark:placeholder-gray-400 py-2 px-2 min-w-0" placeholder="Text message" disabled autocomplete="off">
+                                        <button id="msg-emoji-btn" class="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Emojis"><i data-lucide="smile" class="w-5 h-5"></i></button>
+                                        <button id="msg-send-btn" class="w-10 h-10 rounded-full flex items-center justify-center text-[#0b57d0] dark:text-[#a8c7fa] bg-transparent hover:bg-blue-100 dark:hover:bg-blue-900/30 opacity-50 cursor-not-allowed transition-all" disabled>
+                                            <i data-lucide="send" class="w-5 h-5 ml-0.5"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <div class="p-3 shrink-0 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#121212]">
-                                <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-3xl flex items-center px-4 py-2 gap-2 border border-transparent focus-within:border-blue-300 dark:focus-within:border-blue-600 transition-colors">
-                                    <input type="text" id="msg-input" class="flex-1 bg-transparent border-none outline-none text-sm placeholder-gray-500 dark:placeholder-gray-400 py-1.5" placeholder="Message the world...">
+
+                            <!-- New Chat Modal -->
+                            <div id="msg-new-modal" class="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+                                <div class="bg-white dark:bg-[#1e1e1f] w-full max-w-md rounded-[1.5rem] shadow-2xl p-6 transform scale-95 transition-all" id="msg-new-modal-content">
+                                    <h2 class="text-xl font-normal mb-1 text-gray-900 dark:text-white">New Conversation</h2>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Add a friend via username, or join a private room code.</p>
+
+                                    <div class="mb-5">
+                                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2"><i data-lucide="user" class="w-4 h-4 text-blue-500"></i> Direct Message</h3>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="msg-dm-username" placeholder="Exact username of friend" class="flex-1 bg-[#f0f4f9] dark:bg-[#131314] rounded-lg px-4 py-2 border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500">
+                                            <button id="msg-dm-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition-colors shadow-sm">Chat</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="relative flex py-3 items-center">
+                                        <div class="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                                        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase tracking-wider">OR</span>
+                                        <div class="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                                    </div>
+
+                                    <div class="mt-2 mb-6">
+                                        <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2"><i data-lucide="users" class="w-4 h-4 text-purple-500"></i> Custom Room</h3>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="msg-room-code" placeholder="Secret room code" class="flex-1 bg-[#f0f4f9] dark:bg-[#131314] rounded-lg px-4 py-2 border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500">
+                                            <button id="msg-room-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg font-medium transition-colors shadow-sm">Join</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex justify-end gap-2 mt-2 pt-4 border-t border-gray-100 dark:border-gray-800">
+                                        <button id="msg-new-cancel" class="px-5 py-2.5 rounded-full text-[#0b57d0] dark:text-[#a8c7fa] hover:bg-[#f0f4f9] dark:hover:bg-[#131314] font-medium transition-colors w-full">Cancel</button>
+                                    </div>
                                 </div>
-                                <button id="msg-send-btn" class="w-10 h-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center shrink-0 transition-colors shadow-md">
-                                    <i data-lucide="send" class="w-4 h-4 ml-0.5"></i>
-                                </button>
+                            </div>
+
+                            <!-- Invite Modal -->
+                            <div id="msg-invite-modal" class="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+                                <div class="bg-white dark:bg-[#1e1e1f] w-full max-w-sm rounded-[1.5rem] shadow-2xl p-6 transform scale-95 transition-all" id="msg-invite-modal-content">
+                                    <h2 class="text-xl font-normal mb-1 text-gray-900 dark:text-white">Invite to Chat</h2>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Share this secret code with friends so they can join this private room.</p>
+                                    <div class="flex gap-2 items-center mb-6">
+                                        <input type="text" id="msg-invite-code-display" readonly class="flex-1 bg-[#f0f4f9] dark:bg-[#131314] border border-transparent rounded-lg px-4 py-3 text-lg font-mono text-center text-blue-600 dark:text-blue-400 tracking-wider outline-none selection:bg-blue-200/50">
+                                        <button id="msg-invite-copy-btn" class="w-12 h-12 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Copy Code">
+                                            <i data-lucide="copy" class="w-5 h-5"></i>
+                                        </button>
+                                    </div>
+                                    <div class="flex justify-end">
+                                        <button id="msg-invite-close" class="px-5 py-2.5 rounded-full bg-[#f0f4f9] dark:bg-[#131314] hover:bg-gray-200 dark:hover:bg-[#282a2c] text-gray-800 dark:text-gray-200 font-medium transition-colors">Done</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 `,
                 init: (id, root) => {
                     const setupView = root.querySelector('#msg-setup');
-                    const chatView = root.querySelector('#msg-chat');
+                    const mainView = root.querySelector('#msg-main');
+                    const sidebar = root.querySelector('#msg-sidebar');
+                    const chatArea = root.querySelector('#msg-chat-area');
                     const msgContainer = root.querySelector('#msg-messages-container');
                     const input = root.querySelector('#msg-input');
                     const sendBtn = root.querySelector('#msg-send-btn');
+                    const newModal = root.querySelector('#msg-new-modal');
+                    const emptyState = root.querySelector('#msg-empty-state');
+                    const inviteModal = root.querySelector('#msg-invite-modal');
+                    const inviteCodeDisplay = root.querySelector('#msg-invite-code-display');
+                    const inviteCopyBtn = root.querySelector('#msg-invite-copy-btn');
+                    const inviteBtn = root.querySelector('#msg-invite-btn');
                     
-                    let myName = localStorage.getItem('nexus_msg_name') || '';
-                    let ws = null;
-                    const topic = 'nexus_os_global_chat_v420'; // Topic for the public ntfy.sh relay
+                    let myName = chatManager.myName;
+                    const myClientId = chatManager.myClientId;
+                    let activeRoomId = null;
+                    let isMobileView = false;
                     
-                    // Contact Management
-                    let contacts = JSON.parse(localStorage.getItem('nexus_global_contacts') || '[]');
-                    const saveContacts = () => localStorage.setItem('nexus_global_contacts', JSON.stringify(contacts));
+                    // State Management
+                    let rooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
+                    let chatHistory = JSON.parse(localStorage.getItem('nexus_msg_history_v3') || '{}');
+                    
+                    // Emojis & Attachments Setup
+                    const emojiPicker = root.querySelector('#msg-emoji-picker');
+                    const emojisList = ['😀','😂','🥰','😎','😭','😊','🥺','😍','🙏','👍','🔥','❤️','✨','🎉','💯','👀','💀','🤔','🤡','👽'];
+                    emojisList.forEach(e => {
+                        const btn = document.createElement('button');
+                        btn.className = 'p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-90';
+                        btn.innerText = e;
+                        btn.onclick = (ev) => { 
+                            ev.stopPropagation(); 
+                            input.value += e; 
+                            input.focus(); 
+                            emojiPicker.classList.add('hidden'); 
+                            checkInput(); 
+                        };
+                        emojiPicker.appendChild(btn);
+                    });
 
-                    const renderContacts = () => {
-                        const list = root.querySelector('#msg-contacts-list');
-                        list.innerHTML = '';
-                        if(contacts.length === 0) {
-                            list.innerHTML = '<div class="text-center text-xs text-gray-500 mt-6 flex flex-col items-center gap-2"><i data-lucide="users-2" class="w-8 h-8 opacity-40"></i>No contacts yet.<br>Add friends to highlight them!</div>';
-                            lucide.createIcons({root: list});
-                            return;
-                        }
-                        contacts.forEach((c, idx) => {
-                            const el = document.createElement('div');
-                            el.className = 'flex justify-between items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-800/80 rounded cursor-pointer group transition-colors';
-                            el.innerHTML = `
-                                <div class="font-medium text-sm flex items-center gap-3 flex-1" onclick="document.getElementById('${id}').querySelector('#msg-input').value += '@${c} '; document.getElementById('${id}').querySelector('#msg-input').focus();">
-                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow text-white flex items-center justify-center font-bold">${c.charAt(0).toUpperCase()}</div>
-                                    <span class="truncate max-w-[110px] text-gray-800 dark:text-gray-200 group-hover:text-blue-500 transition-colors">${c}</span>
-                                </div>
-                                <button class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1.5" title="Remove Contact"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            `;
-                            el.querySelector('button').onclick = (e) => {
-                                e.stopPropagation();
-                                contacts.splice(idx, 1);
-                                saveContacts();
-                                renderContacts();
-                            };
-                            list.appendChild(el);
-                        });
-                        lucide.createIcons({root: list});
+                    root.querySelector('#msg-emoji-btn').onclick = (e) => { e.stopPropagation(); emojiPicker.classList.toggle('hidden'); };
+                    msgContainer.onclick = () => emojiPicker.classList.add('hidden');
+
+                    root.querySelector('#msg-attach-btn').onclick = () => {
+                        window.notify('Attachments', 'File uploads require Nexus Cloud Storage. Try sending an Image URL using the photo button instead!', 4000);
                     };
 
-                    root.querySelector('#msg-contacts-btn').onclick = () => {
-                        root.querySelector('#msg-contacts-panel').classList.toggle('translate-x-full');
-                        renderContacts();
-                    };
-                    
-                    root.querySelector('#msg-close-contacts').onclick = () => {
-                        root.querySelector('#msg-contacts-panel').classList.add('translate-x-full');
-                    };
-                    
-                    root.querySelector('#msg-add-contact-btn').onclick = () => {
-                        const inp = root.querySelector('#msg-add-contact-inp');
-                        const val = inp.value.trim();
-                        if(val && !contacts.includes(val)) {
-                            contacts.push(val);
-                            saveContacts();
-                            inp.value = '';
-                            renderContacts();
-                            window.notify("Contact Added", `${val} has been added to your contacts.`);
-                        } else if (contacts.includes(val)) {
-                            alert("Contact already exists!");
+                    root.querySelector('#msg-image-btn').onclick = () => {
+                        const url = prompt("Enter an Image URL to send (e.g. https://placehold.co/400x300):");
+                        if(url && url.startsWith('http')) {
+                            const payload = { sender: myName, text: `[IMAGE:${url}]`, clientId: myClientId, roomId: activeRoomId, timestamp: Date.now() };
+                            processOutgoing(payload);
                         }
                     };
+
+                    const checkInput = () => {
+                        if(input.value.trim().length > 0 && activeRoomId) {
+                            sendBtn.disabled = false;
+                            sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                            sendBtn.classList.add('hover:bg-blue-200', 'dark:hover:bg-blue-900/50');
+                        } else {
+                            sendBtn.disabled = true;
+                            sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                            sendBtn.classList.remove('hover:bg-blue-200', 'dark:hover:bg-blue-900/50');
+                        }
+                    };
+                    input.oninput = checkInput;
+
+                    // Initialize Default Global Room if none exist
+                    if (rooms.length === 0) {
+                        rooms.push({ id: 'global', name: 'Global Public Chat', topic: 'nexus_os_global_chat_v420', type: 'public' });
+                        saveRooms();
+                        chatManager.reconnect(); // Reconnect global
+                    }
+
+                    function saveRooms() { localStorage.setItem('nexus_msg_rooms', JSON.stringify(rooms)); }
+                    function saveHistory() { localStorage.setItem('nexus_msg_history_v3', JSON.stringify(chatHistory)); }
+
+                    // OS Background Service Callbacks
+                    window.nexusChatStatusCallback = (isConnected) => {
+                        const status = root.querySelector('#msg-active-status');
+                        if (status) {
+                            if (isConnected) status.classList.remove('hidden');
+                            else status.classList.add('hidden');
+                        }
+                    };
+
+                    window.nexusChatAppCallback = (payload, targetRoom) => {
+                        chatHistory = JSON.parse(localStorage.getItem('nexus_msg_history_v3') || '{}'); // Refetch
+                        if (activeRoomId === targetRoom.id) {
+                            appendMessage(payload);
+                        } else {
+                            const isMe = payload.sender === myName && payload.clientId === myClientId;
+                            if (!isMe) {
+                                let cleanText = payload.text;
+                                if (cleanText.startsWith('[IMAGE:')) cleanText = '🖼️ Sent an image';
+                                window.notify(`New message in ${targetRoom.name}`, `<b>${payload.sender}:</b> ${cleanText}`, 5000);
+                                try { new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3').play(); } catch(e) {}
+                            }
+                        }
+                        renderRooms(); // Update sidebar preview text
+                    };
+
+                    windows[id].unsub = () => { 
+                        window.nexusChatAppCallback = null; 
+                        window.nexusChatStatusCallback = null; 
+                    };
+
+                    // Responsiveness Helper
+                    const checkMobile = () => {
+                        isMobileView = root.clientWidth < 640;
+                        if(isMobileView && activeRoomId) {
+                            sidebar.classList.add('hidden');
+                            chatArea.classList.remove('hidden');
+                        } else if(isMobileView && !activeRoomId) {
+                            sidebar.classList.remove('hidden');
+                            chatArea.classList.add('hidden');
+                        } else {
+                            sidebar.classList.remove('hidden');
+                            chatArea.classList.remove('hidden');
+                        }
+                    };
+                    new ResizeObserver(checkMobile).observe(root);
 
                     if (myName) {
                         root.querySelector('#msg-name-input').value = myName;
-                    }
-
-                    const connectToGlobal = () => {
                         setupView.classList.add('hidden');
-                        chatView.classList.remove('hidden');
-                        
-                        // Connect to ntfy.sh public WebSocket
-                        ws = new WebSocket(`wss://ntfy.sh/${topic}/ws`);
-                        
-                        ws.onopen = () => {
-                            const sysMsg = document.createElement('div');
-                            sysMsg.className = 'text-center text-green-500 text-xs my-1 font-medium';
-                            sysMsg.innerText = 'Connected to global relay.';
-                            msgContainer.appendChild(sysMsg);
-                        };
-
-                        ws.onmessage = (e) => {
-                            const data = JSON.parse(e.data);
-                            if (data.event === 'message') {
-                                try {
-                                    const payload = JSON.parse(data.message);
-                                    renderMessage(payload);
-                                } catch(err) {
-                                    // Ignore malformed messages
-                                }
-                            }
-                        };
-                        
-                        ws.onerror = () => {
-                            const sysMsg = document.createElement('div');
-                            sysMsg.className = 'text-center text-red-500 text-xs my-1 font-medium';
-                            sysMsg.innerText = 'Connection error. Retrying might be needed.';
-                            msgContainer.appendChild(sysMsg);
-                        };
-
-                        windows[id].unsub = () => {
-                            if (ws) ws.close();
-                        };
-                    };
+                        mainView.classList.remove('hidden');
+                        root.querySelector('#msg-my-avatar').innerText = myName.charAt(0).toUpperCase();
+                        renderRooms();
+                    } else {
+                        setupView.classList.remove('hidden');
+                    }
 
                     root.querySelector('#msg-setup-btn').onclick = () => {
                         const name = root.querySelector('#msg-name-input').value.trim();
                         if (name) {
                             myName = name;
-                            localStorage.setItem('nexus_msg_name', name);
-                            connectToGlobal();
+                            chatManager.updateName(name);
+                            setupView.classList.add('hidden');
+                            mainView.classList.remove('hidden');
+                            root.querySelector('#msg-my-avatar').innerText = myName.charAt(0).toUpperCase();
+                            renderRooms();
                         }
                     };
 
-                    root.querySelector('#msg-leave-btn').onclick = () => {
-                        if (ws) ws.close();
-                        chatView.classList.add('hidden');
-                        setupView.classList.remove('hidden');
-                        msgContainer.innerHTML = '<div class="text-center text-gray-400 text-xs my-2">Welcome to the global room. Messages are not saved permanently.</div>';
-                    };
-
-                    const myClientId = Math.random().toString(36).substring(2, 10);
-
-                    function renderMessage(payload) {
-                        const isMe = payload.sender === myName && payload.clientId === myClientId; 
-                        const isContact = contacts.includes(payload.sender) && !isMe;
+                    function renderRooms() {
+                        const list = root.querySelector('#msg-room-list');
+                        list.innerHTML = '';
                         
+                        rooms.forEach(r => {
+                            const hist = chatHistory[r.id] || [];
+                            
+                            // Get preview text (hide image tags)
+                            let lastMsg = 'Start chatting';
+                            if (hist.length > 0) {
+                                lastMsg = hist[hist.length - 1].text;
+                                if (lastMsg.startsWith('[IMAGE:')) lastMsg = '🖼️ Sent an image';
+                            }
+                            
+                            const isActive = activeRoomId === r.id;
+                            
+                            const el = document.createElement('div');
+                            el.className = `flex items-center gap-4 px-3 py-3 rounded-2xl cursor-pointer transition-colors mb-0.5 ${isActive ? 'bg-[#c2e7ff] dark:bg-[#004a77]' : 'hover:bg-[#f0f4f9] dark:hover:bg-[#1e1f20]'}`;
+                            
+                            const iconHtml = r.type === 'public' 
+                                ? `<i data-lucide="globe-2" class="w-5 h-5 text-white"></i>`
+                                : (r.type === 'dm' ? r.name.charAt(0).toUpperCase() : `<i data-lucide="hash" class="w-5 h-5 text-white"></i>`);
+                                
+                            const avatarColor = r.type === 'public' 
+                                ? 'from-blue-500 to-indigo-500' 
+                                : (r.type === 'dm' ? 'from-rose-400 to-orange-500' : 'from-emerald-400 to-teal-600');
+
+                            el.innerHTML = `
+                                <div class="w-12 h-12 rounded-full bg-gradient-to-tr ${avatarColor} flex items-center justify-center font-bold text-white text-xl shrink-0 shadow-sm">
+                                    ${iconHtml}
+                                </div>
+                                <div class="flex-1 overflow-hidden flex flex-col justify-center">
+                                    <div class="font-medium text-[15px] ${isActive ? 'text-[#001d35] dark:text-[#c2e7ff]' : 'text-gray-900 dark:text-gray-100'} truncate leading-tight">${r.name}</div>
+                                    <div class="text-[13px] ${isActive ? 'text-[#004a77] dark:text-[#a8c7fa]' : 'text-gray-500 dark:text-gray-400'} truncate leading-tight mt-0.5">${lastMsg}</div>
+                                </div>
+                            `;
+                            el.onclick = () => openRoom(r.id);
+                            list.appendChild(el);
+                        });
+                        lucide.createIcons({root: list});
+                    }
+
+                    function openRoom(roomId) {
+                        activeRoomId = roomId;
+                        const room = rooms.find(r => r.id === roomId);
+                        if (!room) return;
+
+                        if(isMobileView) {
+                            sidebar.classList.add('hidden');
+                            chatArea.classList.remove('hidden');
+                        }
+
+                        root.querySelector('#msg-active-name').innerText = room.name;
+                        const avatar = root.querySelector('#msg-active-avatar');
+                        
+                        if (room.type === 'public') {
+                            avatar.innerHTML = '<i data-lucide="globe-2" class="w-5 h-5"></i>';
+                            avatar.className = "w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center font-bold shadow-sm";
+                            root.querySelector('#msg-delete-room-btn').classList.add('hidden');
+                            inviteBtn.classList.add('hidden');
+                        } else if (room.type === 'dm') {
+                            avatar.innerHTML = room.name.charAt(0).toUpperCase();
+                            avatar.className = "w-10 h-10 rounded-full bg-gradient-to-tr from-rose-400 to-orange-500 text-white flex items-center justify-center font-bold shadow-sm text-lg";
+                            root.querySelector('#msg-delete-room-btn').classList.remove('hidden');
+                            inviteBtn.classList.add('hidden');
+                        } else {
+                            avatar.innerHTML = '<i data-lucide="hash" class="w-5 h-5"></i>';
+                            avatar.className = "w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-600 text-white flex items-center justify-center font-bold shadow-sm";
+                            root.querySelector('#msg-delete-room-btn').classList.remove('hidden');
+                            inviteBtn.classList.remove('hidden');
+                        }
+                        
+                        lucide.createIcons({root: avatar});
+
+                        input.disabled = false;
+                        checkInput();
+                        emptyState.classList.add('hidden');
+                        
+                        renderRooms(); 
+                        
+                        // Render messages
+                        msgContainer.innerHTML = '';
+                        const msgs = chatHistory[roomId] || [];
+                        let lastSender = null;
+                        
+                        msgs.forEach(m => {
+                            renderMessageBubble(m, lastSender);
+                            lastSender = m.sender;
+                        });
+                        msgContainer.scrollTop = msgContainer.scrollHeight;
+                        
+                        // Update status if currently connected via global OS
+                        if (chatManager.ws && chatManager.ws.readyState === 1) {
+                            root.querySelector('#msg-active-status').classList.remove('hidden');
+                        }
+                    }
+
+                    function renderMessageBubble(payload, lastSender) {
+                        const isMe = payload.sender === myName && payload.clientId === myClientId; 
+                        const isContinuation = payload.sender === lastSender;
+                        
+                        // Handle formatting (escaping HTML & rendering images)
+                        let safeText = payload.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        const imgMatch = payload.text.match(/^\\[IMAGE:(.+)\\]$/);
+                        
+                        if (imgMatch) {
+                            const safeUrl = imgMatch[1].replace(/"/g, "&quot;");
+                            safeText = `<img src="${safeUrl}" class="max-w-full h-auto max-h-48 rounded-lg border border-gray-200 dark:border-gray-700 mt-1 cursor-pointer hover:opacity-90 transition-opacity bg-white" onclick="window.open('${safeUrl}', '_blank')" onerror="this.outerHTML='<span class=\\'text-red-500 text-xs italic\\'>[Broken Image URL]</span>'">`;
+                        }
+
                         const div = document.createElement('div');
                         
                         if (isMe) {
-                            div.className = 'max-w-[80%] self-end flex flex-col items-end animate-[slideIn_0.2s_ease-out]';
+                            div.className = `max-w-[80%] self-end flex flex-col items-end ${isContinuation ? 'mt-0' : 'mt-2'}`;
                             div.innerHTML = `
-                                <div class="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-2xl rounded-tr-sm shadow-sm break-words">${payload.text}</div>
-                            `;
-                        } else if (isContact) {
-                            div.className = 'max-w-[80%] self-start flex flex-col items-start animate-[slideIn_0.2s_ease-out]';
-                            div.innerHTML = `
-                                <div class="text-[10px] text-blue-500 dark:text-blue-400 mb-1 ml-1 font-bold flex items-center gap-1">
-                                    <i data-lucide="star" class="w-3 h-3 fill-current text-yellow-400"></i> ${payload.sender}
-                                </div>
-                                <div class="px-4 py-2.5 text-sm bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700/50 text-blue-900 dark:text-blue-100 rounded-2xl rounded-tl-sm shadow-md break-words">${payload.text}</div>
+                                <div class="px-4 py-2 text-[15px] bg-[#c2e7ff] dark:bg-[#004a77] text-[#001d35] dark:text-[#e3f2fd] rounded-3xl ${isContinuation ? 'rounded-tr-md' : 'rounded-tr-3xl rounded-br-md'} shadow-sm break-words">${safeText}</div>
                             `;
                         } else {
-                            div.className = 'max-w-[80%] self-start flex flex-col items-start animate-[slideIn_0.2s_ease-out]';
+                            div.className = `max-w-[80%] self-start flex flex-col items-start ${isContinuation ? 'mt-0' : 'mt-2'}`;
                             div.innerHTML = `
-                                <div class="text-[10px] text-gray-500 mb-1 ml-1 font-medium">${payload.sender}</div>
-                                <div class="px-4 py-2.5 text-sm bg-gray-200 dark:bg-[#2d2d2d] text-gray-900 dark:text-gray-100 rounded-2xl rounded-tl-sm shadow-sm break-words">${payload.text}</div>
+                                ${!isContinuation ? `<div class="text-[11px] text-gray-500 dark:text-gray-400 mb-0.5 ml-3 font-medium">${payload.sender}</div>` : ''}
+                                <div class="px-4 py-2 text-[15px] bg-[#f0f4f9] dark:bg-[#1e1f20] text-gray-900 dark:text-gray-100 rounded-3xl ${isContinuation ? 'rounded-tl-md' : 'rounded-tl-3xl rounded-bl-md'} shadow-sm break-words border border-transparent">${safeText}</div>
                             `;
                         }
                         
                         msgContainer.appendChild(div);
-                        msgContainer.scrollTop = msgContainer.scrollHeight;
-                        lucide.createIcons({root: div}); // Render the star icon if it's a contact
                     }
+
+                    function appendMessage(payload) {
+                        const hist = chatHistory[activeRoomId] || [];
+                        const lastSender = hist.length > 1 ? hist[hist.length - 2].sender : null;
+                        renderMessageBubble(payload, lastSender);
+                        msgContainer.scrollTop = msgContainer.scrollHeight;
+                    }
+
+                    const processOutgoing = (payload) => {
+                        if (!chatHistory[activeRoomId]) chatHistory[activeRoomId] = [];
+                        chatHistory[activeRoomId].push(payload);
+                        saveHistory();
+                        appendMessage(payload);
+                        renderRooms();
+
+                        const room = rooms.find(r => r.id === activeRoomId);
+                        if (room) {
+                            chatManager.send(room.topic, payload);
+                        }
+                    };
 
                     function sendMessage() {
                         const text = input.value.trim();
-                        if (!text) return;
+                        if (!text || !activeRoomId) return;
                         
-                        input.value = ''; // Clear immediately for UX
+                        input.value = '';
+                        checkInput();
+                        emojiPicker.classList.add('hidden');
                         
-                        // Post to ntfy.sh public relay
-                        fetch(`https://ntfy.sh/${topic}`, {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                sender: myName,
-                                text: text,
-                                clientId: myClientId
-                            })
-                        }).catch(err => {
-                            window.notify("Chat Error", "Failed to send message to relay.");
-                        });
+                        const payload = { sender: myName, text: text, clientId: myClientId, roomId: activeRoomId, timestamp: Date.now() };
+                        processOutgoing(payload);
                     }
 
                     sendBtn.onclick = sendMessage;
                     input.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+
+                    // Modals and Nav
+                    inviteBtn.onclick = () => {
+                        const room = rooms.find(r => r.id === activeRoomId);
+                        if(!room || room.type !== 'private') return;
+                        
+                        inviteCodeDisplay.value = room.topic.replace('nexus_priv_', '');
+                        inviteModal.classList.remove('hidden');
+                        requestAnimationFrame(() => {
+                            root.querySelector('#msg-invite-modal-content').classList.remove('scale-95');
+                            root.querySelector('#msg-invite-modal-content').classList.add('scale-100');
+                        });
+                    };
+
+                    root.querySelector('#msg-invite-close').onclick = () => {
+                        root.querySelector('#msg-invite-modal-content').classList.add('scale-95');
+                        root.querySelector('#msg-invite-modal-content').classList.remove('scale-100');
+                        setTimeout(() => inviteModal.classList.add('hidden'), 200);
+                    };
+
+                    inviteCopyBtn.onclick = () => {
+                        inviteCodeDisplay.select();
+                        document.execCommand('copy');
+                        inviteCopyBtn.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i>';
+                        lucide.createIcons({root: inviteCopyBtn});
+                        setTimeout(() => {
+                            inviteCopyBtn.innerHTML = '<i data-lucide="copy" class="w-5 h-5"></i>';
+                            lucide.createIcons({root: inviteCopyBtn});
+                        }, 2000);
+                        window.notify("Copied", "Invite code copied to clipboard!");
+                    };
+
+                    root.querySelector('#msg-fab').onclick = () => {
+                        newModal.classList.remove('hidden');
+                        root.querySelector('#msg-dm-username').focus();
+                    };
+                    
+                    root.querySelector('#msg-new-cancel').onclick = () => {
+                        newModal.classList.add('hidden');
+                        root.querySelector('#msg-dm-username').value = '';
+                        root.querySelector('#msg-room-code').value = '';
+                    };
+
+                    // DM creation logic
+                    root.querySelector('#msg-dm-btn').onclick = () => {
+                        const friend = root.querySelector('#msg-dm-username').value.trim();
+                        if(!friend) { alert("Enter a username to chat with!"); return; }
+                        if(friend.toLowerCase() === myName.toLowerCase()) { alert("You can't DM yourself!"); return; }
+
+                        // Sort names alphabetically to ensure both users compute the exact same topic string!
+                        const sorted = [myName.toLowerCase(), friend.toLowerCase()].sort();
+                        const topic = 'nexus_dm_' + sorted[0].replace(/[^a-z0-9]/g, '') + '_' + sorted[1].replace(/[^a-z0-9]/g, '');
+
+                        if (!rooms.find(r => r.topic === topic)) {
+                            const newRoomId = 'rm_' + Date.now();
+                            rooms.push({ id: newRoomId, name: friend, topic: topic, type: 'dm' });
+                            saveRooms();
+                            chatManager.reconnect(); // Resubscribe globally
+                            renderRooms();
+                            openRoom(newRoomId);
+                        } else {
+                            const existing = rooms.find(r => r.topic === topic);
+                            openRoom(existing.id);
+                        }
+                        root.querySelector('#msg-new-cancel').click();
+                    };
+
+                    // Custom Room creation logic
+                    root.querySelector('#msg-room-btn').onclick = () => {
+                        const code = root.querySelector('#msg-room-code').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                        
+                        if (!code) { alert("Secret code is required"); return; }
+                        
+                        const topic = 'nexus_priv_' + code;
+                        
+                        if (!rooms.find(r => r.topic === topic)) {
+                            const newRoomId = 'rm_' + Date.now();
+                            rooms.push({ id: newRoomId, name: "Room: " + code, topic: topic, type: 'private' });
+                            saveRooms();
+                            chatManager.reconnect(); // Resubscribe globally
+                            renderRooms();
+                            openRoom(newRoomId);
+                        } else {
+                            const existing = rooms.find(r => r.topic === topic);
+                            openRoom(existing.id);
+                        }
+                        root.querySelector('#msg-new-cancel').click();
+                    };
+
+                    root.querySelector('#msg-back-btn').onclick = () => {
+                        sidebar.classList.remove('hidden');
+                        chatArea.classList.add('hidden');
+                    };
+
+                    root.querySelector('#msg-delete-room-btn').onclick = () => {
+                        if(confirm("Leave and delete this private conversation?")) {
+                            rooms = rooms.filter(r => r.id !== activeRoomId);
+                            delete chatHistory[activeRoomId];
+                            saveRooms();
+                            saveHistory();
+                            activeRoomId = null;
+                            chatManager.reconnect(); // Disconnect from deleted room
+                            renderRooms();
+                            
+                            emptyState.classList.remove('hidden');
+                            msgContainer.innerHTML = '';
+                            msgContainer.appendChild(emptyState);
+                            input.disabled = true;
+                            sendBtn.disabled = true;
+                            root.querySelector('#msg-active-name').innerText = "Select a chat";
+                            root.querySelector('#msg-active-avatar').innerHTML = '';
+                            root.querySelector('#msg-active-status').classList.add('hidden');
+                            root.querySelector('#msg-delete-room-btn').classList.add('hidden');
+                            inviteBtn.classList.add('hidden');
+                            
+                            if(isMobileView) root.querySelector('#msg-back-btn').click();
+                        }
+                    };
                 }
             },
 
@@ -2449,6 +2856,7 @@
         }
 
         window.onload = () => {
+            chatManager.init();
             mediaManager.init();
             lucide.createIcons(); populateMenu(); renderDesktop(); runBoot(); initBattery();
             setInterval(() => {
