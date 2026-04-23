@@ -1046,7 +1046,20 @@
                                         <div class="w-8 h-8 rounded-full bg-[#004a77] text-[#c2e7ff] flex items-center justify-center font-bold text-sm shadow-sm" id="msg-my-avatar"></div>
                                         <span class="font-medium text-lg text-gray-800 dark:text-gray-200">Messages</span>
                                     </div>
-                                    <i data-lucide="more-vertical" class="w-5 h-5 text-gray-500 cursor-pointer hover:text-gray-800 dark:hover:text-gray-200 transition-colors"></i>
+                                    <div class="relative">
+                                        <button id="msg-settings-btn" class="p-2 -mr-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+                                            <i data-lucide="more-vertical" class="w-5 h-5 text-gray-500"></i>
+                                        </button>
+                                        <div id="msg-settings-menu" class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#1e1e1f] border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl py-2 hidden z-[100]">
+                                            <div class="px-4 py-2 flex items-center gap-3">
+                                                <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0" id="msg-settings-avatar"></div>
+                                                <div class="overflow-hidden">
+                                                    <div class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">Signed in as</div>
+                                                    <div class="font-bold text-gray-900 dark:text-gray-100 truncate text-sm" id="msg-settings-username"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="px-4 pb-2">
                                     <div class="bg-[#e9eef6] dark:bg-[#1e1f20] rounded-full flex items-center px-4 py-3 gap-3 border border-transparent focus-within:border-blue-200 dark:focus-within:border-blue-900/50 transition-colors">
@@ -1181,10 +1194,30 @@
                     const inviteCopyBtn = root.querySelector('#msg-invite-copy-btn');
                     const inviteBtn = root.querySelector('#msg-invite-btn');
                     
+                    const settingsBtn = root.querySelector('#msg-settings-btn');
+                    const settingsMenu = root.querySelector('#msg-settings-menu');
+                    const settingsUsername = root.querySelector('#msg-settings-username');
+                    const settingsAvatar = root.querySelector('#msg-settings-avatar');
+
                     let myName = chatManager.myName;
                     const myClientId = chatManager.myClientId;
                     let activeRoomId = null;
                     let isMobileView = false;
+                    
+                    settingsBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        settingsUsername.innerText = myName;
+                        settingsAvatar.innerText = myName ? myName.charAt(0).toUpperCase() : '?';
+                        settingsMenu.classList.toggle('hidden');
+                    };
+
+                    settingsMenu.onclick = (e) => e.stopPropagation();
+
+                    root.addEventListener('click', () => {
+                        if (!settingsMenu.classList.contains('hidden')) {
+                            settingsMenu.classList.add('hidden');
+                        }
+                    });
                     
                     // State Management
                     let rooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
