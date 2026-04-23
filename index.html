@@ -826,10 +826,19 @@
             reconnect: () => {
                 if (chatManager.ws) chatManager.ws.close();
                 const rooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
-                if (rooms.length === 0) return;
-                const topics = rooms.map(r => r.topic).join(',');
                 
-                chatManager.ws = new WebSocket(`wss://ntfy.sh/${topics}/ws`);
+                let topics = rooms.map(r => r.topic);
+                
+                // Always subscribe to personal inbox for DM invites
+                if (chatManager.myName) {
+                    const myInbox = 'nexus_inbox_' + chatManager.myName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (!topics.includes(myInbox)) topics.push(myInbox);
+                }
+
+                if (topics.length === 0) return;
+                const topicsStr = topics.join(',');
+                
+                chatManager.ws = new WebSocket(`wss://ntfy.sh/${topicsStr}/ws`);
                 
                 chatManager.ws.onopen = () => {
                     if (window.nexusChatStatusCallback) window.nexusChatStatusCallback(true);
@@ -848,6 +857,31 @@
                     if (data.event === 'message') {
                         try {
                             const payload = JSON.parse(data.message);
+                            
+                            // Check if this is a hidden DM invite on our personal inbox
+                            if (payload.type === 'dm_invite') {
+                                const myInbox = 'nexus_inbox_' + chatManager.myName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                if (data.topic === myInbox) {
+                                    let currentRooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
+                                    // If we don't have this room yet, add it automatically
+                                    if (!currentRooms.find(r => r.topic === payload.room.topic)) {
+                                        currentRooms.push(payload.room);
+                                        localStorage.setItem('nexus_msg_rooms', JSON.stringify(currentRooms));
+                                        
+                                        window.notify("New Direct Message", `${payload.sender} started a chat with you!`, 6000);
+                                        try { 
+                                            const sfx = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3');
+                                            sfx.volume = 0.6; sfx.play(); 
+                                        } catch(err) {}
+                                        
+                                        chatManager.reconnect(); // Re-establish sockets to include new room
+                                        if (window.nexusChatForceRenderRooms) window.nexusChatForceRenderRooms(); // Refresh UI if open
+                                    }
+                                }
+                                return; // Stop processing as normal message
+                            }
+
+                            // Normal message processing
                             const roomsList = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
                             const targetRoom = roomsList.find(r => r.topic === data.topic);
                             
@@ -1303,9 +1337,16 @@
                         renderRooms(); // Update sidebar preview text
                     };
 
+                    // Called by the background chat manager if a DM invite arrives while app is open
+                    window.nexusChatForceRenderRooms = () => {
+                        rooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
+                        renderRooms();
+                    };
+
                     windows[id].unsub = () => { 
                         window.nexusChatAppCallback = null; 
                         window.nexusChatStatusCallback = null; 
+                        window.nexusChatForceRenderRooms = null;
                     };
 
                     // Responsiveness Helper
@@ -1568,6 +1609,15 @@
                             chatManager.reconnect(); // Resubscribe globally
                             renderRooms();
                             openRoom(newRoomId);
+
+                            // Send an invisible invite directly to the friend's personal inbox!
+                            const friendInbox = 'nexus_inbox_' + friend.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            chatManager.send(friendInbox, {
+                                type: 'dm_invite',
+                                sender: myName,
+                                room: { id: newRoomId, name: myName, topic: topic, type: 'dm' } // Note: giving them a room with OUR name
+                            });
+
                         } else {
                             const existing = rooms.find(r => r.topic === topic);
                             openRoom(existing.id);
