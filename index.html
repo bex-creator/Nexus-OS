@@ -80,8 +80,11 @@
         
         /* Notifications */
         #notification-area { pointer-events: none; }
-        .notification { pointer-events: auto; animation: slideIn 0.3s ease-out forwards; }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .notification { pointer-events: auto; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .notification.closing { animation: slideOut 0.3s ease-in forwards; }
+        @keyframes slideIn { 0% { transform: translateX(120%) scale(0.9); opacity: 0; } 100% { transform: translateX(0) scale(1); opacity: 1; } }
+        @keyframes slideOut { 0% { transform: translateX(0) scale(1); opacity: 1; } 100% { transform: translateX(120%) scale(0.9); opacity: 0; } }
+        @keyframes shrink { from { width: 100%; } to { width: 0%; } }
     </style>
 </head>
 <body class="h-screen w-screen select-none wallpaper relative" oncontextmenu="return false;">
@@ -364,10 +367,64 @@
         window.notify = (title, msg, duration = 4000) => {
             const area = document.getElementById('notification-area');
             const el = document.createElement('div');
-            el.className = "notification bg-gray-800/90 backdrop-blur border border-gray-700 text-white p-3 rounded-lg shadow-xl flex items-start gap-3 relative overflow-hidden mb-2";
-            el.innerHTML = `<div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div><div class="flex-1"><h4 class="font-bold text-sm">${title}</h4><div class="text-xs text-gray-300 mt-1">${msg}</div></div>`;
+            
+            let icon = 'bell';
+            let themeClasses = 'bg-blue-500/20 border-blue-500/30 text-blue-400 bg-blue-500';
+            let glowClass = 'bg-blue-500/20';
+
+            const tLower = title.toLowerCase();
+            if(tLower.includes('message') || tLower.includes('chat')) { 
+                icon = 'message-square'; 
+                themeClasses = 'bg-green-500/20 border-green-500/30 text-green-400 bg-green-500'; 
+                glowClass = 'bg-green-500/20';
+            }
+            else if(tLower.includes('music') || tLower.includes('audio')) { 
+                icon = 'music'; 
+                themeClasses = 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 bg-indigo-500'; 
+                glowClass = 'bg-indigo-500/20';
+            }
+            else if(tLower.includes('reminder')) { 
+                icon = 'clock'; 
+                themeClasses = 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400 bg-yellow-500'; 
+                glowClass = 'bg-yellow-500/20';
+            }
+            else if(tLower.includes('error') || tLower.includes('fail')) { 
+                icon = 'alert-triangle'; 
+                themeClasses = 'bg-red-500/20 border-red-500/30 text-red-400 bg-red-500'; 
+                glowClass = 'bg-red-500/20';
+            }
+
+            const [bgClass, borderClass, textClass, barClass] = themeClasses.split(' ');
+
+            el.className = `notification group relative overflow-hidden bg-[#18181b]/90 backdrop-blur-2xl border border-white/10 p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] w-80 mb-3 transition-all`;
+            
+            el.innerHTML = `
+                <div class="absolute -top-10 -right-10 w-32 h-32 ${glowClass} blur-3xl rounded-full pointer-events-none"></div>
+                <div class="flex gap-3 relative z-10">
+                    <div class="w-10 h-10 rounded-full ${bgClass} border ${borderClass} flex items-center justify-center shrink-0 shadow-inner">
+                        <i data-lucide="${icon}" class="w-5 h-5 ${textClass}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0 pt-0.5">
+                        <h4 class="font-bold text-[13px] text-white truncate drop-shadow-md tracking-wide">${title}</h4>
+                        <div class="text-[12px] text-gray-300 mt-1 line-clamp-2 leading-relaxed font-medium">${msg}</div>
+                    </div>
+                    <button class="text-gray-500 hover:text-white transition-colors absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 bg-black/40 backdrop-blur rounded-full p-1.5" onclick="this.closest('.notification').classList.add('closing'); setTimeout(() => this.closest('.notification').remove(), 300)">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                </div>
+                ${duration > 0 ? `<div class="absolute bottom-0 left-0 h-[3px] ${barClass}" style="animation: shrink ${duration}ms linear forwards;"></div>` : ''}
+            `;
             area.appendChild(el);
-            if(duration > 0) setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(), 300); }, duration);
+            lucide.createIcons({root: el});
+            
+            if(duration > 0) {
+                setTimeout(() => { 
+                    if(el.parentElement) {
+                        el.classList.add('closing'); 
+                        setTimeout(()=>el.remove(), 300); 
+                    }
+                }, duration);
+            }
         };
 
         window.desktopShowing = false;
