@@ -12,12 +12,13 @@
     <link rel="icon" type="image/png" href="https://placehold.co/192x192/000000/3b82f6.png?text=N">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600&display=swap');
 
         :root {
             --bg-color: #000;
-            --window-bg: rgba(30, 30, 30, 0.85); /* More translucent */
+            --window-bg: rgba(30, 30, 30, 0.85);
             --window-header: rgba(40, 40, 40, 0.95);
             --text-main: #e5e7eb;
             --accent-color: #3b82f6;
@@ -73,7 +74,7 @@
             background-size: cover; background-position: center; transition: background-image 0.5s ease;
         }
         .task-item.active { background-color: rgba(255, 255, 255, 0.15); border-bottom: 2px solid var(--accent-color); }
-        .task-item.hidden-workspace { opacity: 0.3; } /* Dim icons for windows on other desks */
+        .task-item.hidden-workspace { opacity: 0.3; }
         
         #context-menu, #file-context-menu, #taskbar-context-menu, #icon-context-menu { transition: opacity 0.1s ease; }
         
@@ -328,7 +329,9 @@
         let userData = JSON.parse(localStorage.getItem('gemini_os_user_data'));
         let currentWorkspace = 1;
         
-        let db = null; // Stubs for offline gracefully failing features
+        let db = null; 
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         // Reminders Global State
         window.nexusReminders = JSON.parse(localStorage.getItem('nexus_os_reminders')) || [];
@@ -517,11 +520,8 @@
                 }
             } catch(e) {}
 
-            // --- NEW: Nexus Chat Auth Listener (Single Sign-On) ---
             if (event.data && event.data.type === 'NEXUS_AUTH_REQUEST') {
-                console.log("Nexus OS received auth request from Chat App!");
                 if (userData && userData.username) {
-                    // Send credentials back to the iframe silently (Single Sign-On)
                     event.source.postMessage({
                         type: 'NEXUS_AUTH_SUCCESS',
                         user: {
@@ -531,7 +531,7 @@
                     }, '*');
                     window.notify("Nexus Chat", "Authenticated automatically.");
                 } else {
-                    window.lockSystem(); // Force login if somehow not authenticated
+                    window.lockSystem(); 
                     window.notify("Authentication Required", "Please login to Nexus OS first.");
                 }
                 return;
@@ -842,7 +842,7 @@
                 "Music": { type: 'link', action: "openApp('music')", icon: 'music', color: 'text-indigo-400' },
                 "Reminders": { type: 'link', action: "openApp('reminders')", icon: 'bell', color: 'text-yellow-400' },
                 "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus },
-                "Nexus Chat": { type: 'link', action: "openApp('runner', { name: 'Nexus Chat', url: 'https://benjaminlebeau731-afk.github.io/chat/?' })", icon: 'message-circle', color: 'text-green-400' },
+                "Global Chat": { type: 'link', action: "openApp('messagesApp')", icon: 'globe-2', color: 'text-blue-500' },
                 "Web Search": { type: 'link', action: "openApp('runner', { name: 'Google Search', url: 'https://www.google.com/webhp?igu=1' })", icon: 'search', color: 'text-blue-400' },
                 "My Custom App": { type: 'link', action: "openApp('myCustomApp')", icon: 'star', color: 'text-yellow-400' },
                 "Paintings": { type: 'dir', children: {} }
@@ -855,7 +855,6 @@
         let fileSystem = JSON.parse(localStorage.getItem('nexus_os_fs')) || defaultFileSystem;
         const saveFS = () => localStorage.setItem('nexus_os_fs', JSON.stringify(fileSystem));
 
-        // Migrate Old "Chrome" or "Nexus" browser icon to new Nexus Browser
         const deskNode = fileSystem.root.children?.home?.children?.user?.children?.Desktop;
         if (deskNode) {
             if (deskNode.children["Chrome"]) {
@@ -881,22 +880,22 @@
             if (!deskNode.children["Utility Store"]) {
                 deskNode.children["Utility Store"] = { type: 'link', action: "openApp('utilityStore')", icon: 'wrench', color: 'text-gray-300' };
             }
-            // Add Nexus Chat to Desktop For Users Who Already Saved OS FS State
-            if (!deskNode.children["Nexus Chat"]) {
-                deskNode.children["Nexus Chat"] = { type: 'link', action: "openApp('runner', { name: 'Nexus Chat', url: 'https://benjaminlebeau731-afk.github.io/chat/?' })", icon: 'message-circle', color: 'text-green-400' };
+            
+            // Clean old chat apps and add the new Global Chat app
+            if (deskNode.children["Nexus Chat"]) delete deskNode.children["Nexus Chat"];
+            if (deskNode.children["Chat"]) delete deskNode.children["Chat"];
+            if (deskNode.children["Messages"]) delete deskNode.children["Messages"];
+            
+            if (!deskNode.children["Global Chat"]) {
+                deskNode.children["Global Chat"] = { type: 'link', action: "openApp('messagesApp')", icon: 'globe-2', color: 'text-blue-500' };
             }
+            
             if (!deskNode.children["My Custom App"]) {
                 deskNode.children["My Custom App"] = { type: 'link', action: "openApp('myCustomApp')", icon: 'star', color: 'text-yellow-400' };
             }
             if (!deskNode.children["Paintings"]) {
                 deskNode.children["Paintings"] = { type: 'dir', children: {} };
             }
-            
-            // Clean up old apps
-            if (deskNode.children["Camera"]) delete deskNode.children["Camera"];
-            if (deskNode.children["Camera Roll"]) delete deskNode.children["Camera Roll"];
-            if (deskNode.children["Snake"]) delete deskNode.children["Snake"];
-            if (deskNode.children["Sticky Notes"]) delete deskNode.children["Sticky Notes"];
             
             saveFS();
         }
@@ -914,7 +913,7 @@
 
         const appDefinitions = {
             // =========================================================================
-            // MY CUSTOM APP SPACE - PASTE YOUR HTML AND JAVASCRIPT HERE
+            // MY CUSTOM APP SPACE
             // =========================================================================
             myCustomApp: {
                 title: 'My Custom App',
@@ -924,53 +923,271 @@
                 height: '600px',
                 render: () => `
                     <div class="h-full bg-white text-black p-4 overflow-y-auto">
-                        
-                        <!-- ========================================== -->
-                        <!-- PASTE YOUR HTML UI CODE BELOW THIS LINE    -->
-                        <!-- ========================================== -->
-                        
-                        
-                        
                         <h1 class="text-3xl font-bold mb-4">Welcome to My Custom App!</h1>
                         <p class="mb-4">You can replace this text with your own HTML code.</p>
                         <button id="my-custom-btn" class="bg-blue-500 text-white px-4 py-2 rounded">Click Me</button>
                         <div id="my-custom-output" class="mt-4 text-green-600 font-bold"></div>
-
-
-
-                        <!-- ========================================== -->
-                        <!-- PASTE YOUR HTML UI CODE ABOVE THIS LINE    -->
-                        <!-- ========================================== -->
-
                     </div>
                 `,
                 init: (id, root) => {
-                    // ==========================================
-                    // PASTE YOUR JAVASCRIPT LOGIC BELOW THIS LINE
-                    // Note: Because this app runs inside Nexus OS, always use 
-                    // 'root.querySelector' instead of 'document.getElementById'
-                    // to find your HTML elements!
-                    // ==========================================
-                    
-
-
                     const myBtn = root.querySelector('#my-custom-btn');
                     const myOutput = root.querySelector('#my-custom-output');
-
                     if (myBtn) {
                         myBtn.onclick = () => {
                             myOutput.innerText = "The button was clicked! Your custom JavaScript works!";
                         };
                     }
-
-
-
-                    // ==========================================
-                    // PASTE YOUR JAVASCRIPT LOGIC ABOVE THIS LINE
-                    // ==========================================
                 }
             },
             // =========================================================================
+
+            messagesApp: {
+                title: 'Global Chat', icon: 'globe-2', color: 'text-blue-500', width: '450px', height: '600px',
+                render: () => `
+                    <div class="h-full bg-white dark:bg-[#121212] flex flex-col font-sans relative text-gray-900 dark:text-gray-100 transition-colors overflow-hidden">
+                        <!-- SETUP VIEW -->
+                        <div id="msg-setup" class="absolute inset-0 z-20 bg-white dark:bg-[#121212] flex flex-col items-center justify-center p-6">
+                            <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-6 shadow-md">
+                                <i data-lucide="globe-2" class="w-10 h-10 text-blue-600 dark:text-blue-400"></i>
+                            </div>
+                            <h2 class="text-2xl font-semibold mb-2">Nexus Global Chat</h2>
+                            <p class="text-gray-500 dark:text-gray-400 text-center text-sm mb-8">Join the public serverless chat room. No IDs required.</p>
+                            <input type="text" id="msg-name-input" class="w-full max-w-xs bg-gray-100 dark:bg-gray-800 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-center mb-4 text-lg" placeholder="Your display name">
+                            <button id="msg-setup-btn" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 font-medium transition-colors shadow-lg">Join World</button>
+                        </div>
+
+                        <!-- CHAT VIEW -->
+                        <div id="msg-chat" class="absolute inset-0 z-10 flex flex-col hidden">
+                            <div class="h-16 px-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 shrink-0 bg-gray-50 dark:bg-[#181818]">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white shadow-md">
+                                        <i data-lucide="globe-2" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-base leading-tight">Public World Chat</div>
+                                        <div class="text-xs text-green-500 flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div> Live</div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button id="msg-contacts-btn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-blue-500" title="Contacts">
+                                        <i data-lucide="users" class="w-5 h-5"></i>
+                                    </button>
+                                    <button id="msg-leave-btn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-red-500" title="Leave">
+                                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3 relative" id="msg-messages-container">
+                                <div class="text-center text-gray-400 text-xs my-2">Welcome to the global room. Messages are not saved permanently.</div>
+                            </div>
+
+                            <!-- Contacts Overlay Panel -->
+                            <div id="msg-contacts-panel" class="absolute top-16 bottom-14 right-0 w-64 bg-gray-50 dark:bg-[#1a1a1a] border-l border-gray-200 dark:border-gray-800 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col z-30">
+                                <div class="p-3 border-b border-gray-200 dark:border-gray-800 font-bold flex items-center justify-between">
+                                    My Contacts
+                                    <button id="msg-close-contacts" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                                </div>
+                                <div class="p-3 flex gap-2 border-b border-gray-200 dark:border-gray-800 shrink-0">
+                                    <input type="text" id="msg-add-contact-inp" class="flex-1 bg-white dark:bg-black/50 border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500" placeholder="Enter friend's name...">
+                                    <button id="msg-add-contact-btn" class="bg-blue-600 hover:bg-blue-700 transition text-white px-3 py-1.5 rounded text-sm font-bold shadow-md"><i data-lucide="user-plus" class="w-4 h-4"></i></button>
+                                </div>
+                                <div id="msg-contacts-list" class="flex-1 overflow-y-auto p-2 custom-scrollbar flex flex-col gap-1"></div>
+                            </div>
+                            
+                            <div class="p-3 shrink-0 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#121212]">
+                                <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-3xl flex items-center px-4 py-2 gap-2 border border-transparent focus-within:border-blue-300 dark:focus-within:border-blue-600 transition-colors">
+                                    <input type="text" id="msg-input" class="flex-1 bg-transparent border-none outline-none text-sm placeholder-gray-500 dark:placeholder-gray-400 py-1.5" placeholder="Message the world...">
+                                </div>
+                                <button id="msg-send-btn" class="w-10 h-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center shrink-0 transition-colors shadow-md">
+                                    <i data-lucide="send" class="w-4 h-4 ml-0.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                init: (id, root) => {
+                    const setupView = root.querySelector('#msg-setup');
+                    const chatView = root.querySelector('#msg-chat');
+                    const msgContainer = root.querySelector('#msg-messages-container');
+                    const input = root.querySelector('#msg-input');
+                    const sendBtn = root.querySelector('#msg-send-btn');
+                    
+                    let myName = localStorage.getItem('nexus_msg_name') || '';
+                    let ws = null;
+                    const topic = 'nexus_os_global_chat_v420'; // Topic for the public ntfy.sh relay
+                    
+                    // Contact Management
+                    let contacts = JSON.parse(localStorage.getItem('nexus_global_contacts') || '[]');
+                    const saveContacts = () => localStorage.setItem('nexus_global_contacts', JSON.stringify(contacts));
+
+                    const renderContacts = () => {
+                        const list = root.querySelector('#msg-contacts-list');
+                        list.innerHTML = '';
+                        if(contacts.length === 0) {
+                            list.innerHTML = '<div class="text-center text-xs text-gray-500 mt-6 flex flex-col items-center gap-2"><i data-lucide="users-2" class="w-8 h-8 opacity-40"></i>No contacts yet.<br>Add friends to highlight them!</div>';
+                            lucide.createIcons({root: list});
+                            return;
+                        }
+                        contacts.forEach((c, idx) => {
+                            const el = document.createElement('div');
+                            el.className = 'flex justify-between items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-800/80 rounded cursor-pointer group transition-colors';
+                            el.innerHTML = `
+                                <div class="font-medium text-sm flex items-center gap-3 flex-1" onclick="document.getElementById('${id}').querySelector('#msg-input').value += '@${c} '; document.getElementById('${id}').querySelector('#msg-input').focus();">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow text-white flex items-center justify-center font-bold">${c.charAt(0).toUpperCase()}</div>
+                                    <span class="truncate max-w-[110px] text-gray-800 dark:text-gray-200 group-hover:text-blue-500 transition-colors">${c}</span>
+                                </div>
+                                <button class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1.5" title="Remove Contact"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            `;
+                            el.querySelector('button').onclick = (e) => {
+                                e.stopPropagation();
+                                contacts.splice(idx, 1);
+                                saveContacts();
+                                renderContacts();
+                            };
+                            list.appendChild(el);
+                        });
+                        lucide.createIcons({root: list});
+                    };
+
+                    root.querySelector('#msg-contacts-btn').onclick = () => {
+                        root.querySelector('#msg-contacts-panel').classList.toggle('translate-x-full');
+                        renderContacts();
+                    };
+                    
+                    root.querySelector('#msg-close-contacts').onclick = () => {
+                        root.querySelector('#msg-contacts-panel').classList.add('translate-x-full');
+                    };
+                    
+                    root.querySelector('#msg-add-contact-btn').onclick = () => {
+                        const inp = root.querySelector('#msg-add-contact-inp');
+                        const val = inp.value.trim();
+                        if(val && !contacts.includes(val)) {
+                            contacts.push(val);
+                            saveContacts();
+                            inp.value = '';
+                            renderContacts();
+                            window.notify("Contact Added", `${val} has been added to your contacts.`);
+                        } else if (contacts.includes(val)) {
+                            alert("Contact already exists!");
+                        }
+                    };
+
+                    if (myName) {
+                        root.querySelector('#msg-name-input').value = myName;
+                    }
+
+                    const connectToGlobal = () => {
+                        setupView.classList.add('hidden');
+                        chatView.classList.remove('hidden');
+                        
+                        // Connect to ntfy.sh public WebSocket
+                        ws = new WebSocket(`wss://ntfy.sh/${topic}/ws`);
+                        
+                        ws.onopen = () => {
+                            const sysMsg = document.createElement('div');
+                            sysMsg.className = 'text-center text-green-500 text-xs my-1 font-medium';
+                            sysMsg.innerText = 'Connected to global relay.';
+                            msgContainer.appendChild(sysMsg);
+                        };
+
+                        ws.onmessage = (e) => {
+                            const data = JSON.parse(e.data);
+                            if (data.event === 'message') {
+                                try {
+                                    const payload = JSON.parse(data.message);
+                                    renderMessage(payload);
+                                } catch(err) {
+                                    // Ignore malformed messages
+                                }
+                            }
+                        };
+                        
+                        ws.onerror = () => {
+                            const sysMsg = document.createElement('div');
+                            sysMsg.className = 'text-center text-red-500 text-xs my-1 font-medium';
+                            sysMsg.innerText = 'Connection error. Retrying might be needed.';
+                            msgContainer.appendChild(sysMsg);
+                        };
+
+                        windows[id].unsub = () => {
+                            if (ws) ws.close();
+                        };
+                    };
+
+                    root.querySelector('#msg-setup-btn').onclick = () => {
+                        const name = root.querySelector('#msg-name-input').value.trim();
+                        if (name) {
+                            myName = name;
+                            localStorage.setItem('nexus_msg_name', name);
+                            connectToGlobal();
+                        }
+                    };
+
+                    root.querySelector('#msg-leave-btn').onclick = () => {
+                        if (ws) ws.close();
+                        chatView.classList.add('hidden');
+                        setupView.classList.remove('hidden');
+                        msgContainer.innerHTML = '<div class="text-center text-gray-400 text-xs my-2">Welcome to the global room. Messages are not saved permanently.</div>';
+                    };
+
+                    const myClientId = Math.random().toString(36).substring(2, 10);
+
+                    function renderMessage(payload) {
+                        const isMe = payload.sender === myName && payload.clientId === myClientId; 
+                        const isContact = contacts.includes(payload.sender) && !isMe;
+                        
+                        const div = document.createElement('div');
+                        
+                        if (isMe) {
+                            div.className = 'max-w-[80%] self-end flex flex-col items-end animate-[slideIn_0.2s_ease-out]';
+                            div.innerHTML = `
+                                <div class="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-2xl rounded-tr-sm shadow-sm break-words">${payload.text}</div>
+                            `;
+                        } else if (isContact) {
+                            div.className = 'max-w-[80%] self-start flex flex-col items-start animate-[slideIn_0.2s_ease-out]';
+                            div.innerHTML = `
+                                <div class="text-[10px] text-blue-500 dark:text-blue-400 mb-1 ml-1 font-bold flex items-center gap-1">
+                                    <i data-lucide="star" class="w-3 h-3 fill-current text-yellow-400"></i> ${payload.sender}
+                                </div>
+                                <div class="px-4 py-2.5 text-sm bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700/50 text-blue-900 dark:text-blue-100 rounded-2xl rounded-tl-sm shadow-md break-words">${payload.text}</div>
+                            `;
+                        } else {
+                            div.className = 'max-w-[80%] self-start flex flex-col items-start animate-[slideIn_0.2s_ease-out]';
+                            div.innerHTML = `
+                                <div class="text-[10px] text-gray-500 mb-1 ml-1 font-medium">${payload.sender}</div>
+                                <div class="px-4 py-2.5 text-sm bg-gray-200 dark:bg-[#2d2d2d] text-gray-900 dark:text-gray-100 rounded-2xl rounded-tl-sm shadow-sm break-words">${payload.text}</div>
+                            `;
+                        }
+                        
+                        msgContainer.appendChild(div);
+                        msgContainer.scrollTop = msgContainer.scrollHeight;
+                        lucide.createIcons({root: div}); // Render the star icon if it's a contact
+                    }
+
+                    function sendMessage() {
+                        const text = input.value.trim();
+                        if (!text) return;
+                        
+                        input.value = ''; // Clear immediately for UX
+                        
+                        // Post to ntfy.sh public relay
+                        fetch(`https://ntfy.sh/${topic}`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                sender: myName,
+                                text: text,
+                                clientId: myClientId
+                            })
+                        }).catch(err => {
+                            window.notify("Chat Error", "Failed to send message to relay.");
+                        });
+                    }
+
+                    sendBtn.onclick = sendMessage;
+                    input.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+                }
+            },
 
             explorer: {
                 title: 'File Explorer', icon: 'folder', color: 'text-yellow-500', width: '600px', height: '450px',
@@ -1384,13 +1601,13 @@
                 }
             },
             calculator: { title: 'Calculator', icon: 'calculator', color: 'text-gray-200', width: '300px', height: '400px', render: () => `<div class="h-full bg-gray-900 flex flex-col p-4"><input type="text" class="calc-display w-full bg-gray-800 text-right text-3xl text-white p-4 rounded mb-4 outline-none" readonly value="0"><div class="grid grid-cols-4 gap-2 flex-1 button-grid"></div></div>`, init: (id, root) => { const display = root.querySelector('.calc-display'); const buttons = ['C','/','*','-','7','8','9','+','4','5','6','=','1','2','3','0']; const grid = root.querySelector('.button-grid'); let current = ''; buttons.forEach(btn => { const b = document.createElement('button'); b.className = `rounded text-xl font-bold transition-colors ${btn === '=' ? 'row-span-2 bg-blue-600 hover:bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'} ${btn === '0' ? 'col-span-2' : ''}`; b.innerText = btn; b.onclick = () => { if(btn === 'C') { current = ''; display.value = '0'; } else if(btn === '=') { try { display.value = eval(current); current = display.value; } catch { display.value = 'Error'; current = ''; } } else { current += btn; display.value = current; } }; grid.appendChild(b); }); } },
-            editor: { title: 'Code Editor', icon: 'code', color: 'text-yellow-400', render: () => `<div class="h-full bg-[#1e1e1e] flex flex-col"><div class="bg-[#2d2d2d] px-2 py-1 text-xs text-gray-300 flex items-center justify-between border-b border-gray-700"><div class="flex gap-2 items-center"><button class="editor-save hover:bg-white/10 px-2 py-1 rounded text-blue-400 font-bold">Save</button><button class="editor-run hover:bg-white/10 px-2 py-1 rounded text-green-400 font-bold flex gap-1 items-center"><i data-lucide="play" class="w-3 h-3"></i> Run</button><button class="editor-pub hover:bg-white/10 px-2 py-1 rounded text-purple-400 font-bold flex gap-1 items-center"><i data-lucide="cloud-upload" class="w-3 h-3"></i> Publish</button><span class="text-gray-500">|</span><span class="editor-filename text-gray-400">Untitled</span></div><div class="editor-msg text-green-400 opacity-0 transition-opacity">Saved!</div></div><textarea class="editor-content flex-1 bg-[#1e1e1e] text-gray-200 p-4 terminal-font resize-none focus:outline-none text-sm leading-relaxed" spellcheck="false" placeholder="<html>...</html>"></textarea></div>`, init: (id, root, filePath) => { const ta = root.querySelector('.editor-content'); const label = root.querySelector('.editor-filename'); const msg = (txt) => { const el = root.querySelector('.editor-msg'); el.innerText = txt; el.classList.remove('opacity-0'); setTimeout(() => el.classList.add('opacity-0'), 2000); }; if(filePath) { label.innerText = filePath; const f = fs.getPath(filePath); if(f) ta.value = f.content; } root.querySelector('.editor-save').onclick = () => { let path = filePath; if (!path) path = prompt("Save as (e.g. /home/user/apps/myapp.html):"); if (!path) return; if (!path.includes('.')) path += '.html'; if(path.includes('/apps/') && !fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir'); if(fs.createPath(path, 'file', ta.value)) { filePath = path; label.innerText = path; msg("Saved!"); } }; root.querySelector('.editor-run').onclick = () => window.openApp('runner', { content: ta.value, name: filePath || 'Preview' }); root.querySelector('.editor-pub').onclick = () => window.openPublishModal(async (name, desc, author) => { if(!db) { alert("Offline."); return; } try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'apps'), { name, description: desc, content: ta.value, author, timestamp: serverTimestamp() }); alert(`"${name}" Published!`); } catch(e) { alert(e.message); } }); } },
+            editor: { title: 'Code Editor', icon: 'code', color: 'text-yellow-400', render: () => `<div class="h-full bg-[#1e1e1e] flex flex-col"><div class="bg-[#2d2d2d] px-2 py-1 text-xs text-gray-300 flex items-center justify-between border-b border-gray-700"><div class="flex gap-2 items-center"><button class="editor-save hover:bg-white/10 px-2 py-1 rounded text-blue-400 font-bold">Save</button><button class="editor-run hover:bg-white/10 px-2 py-1 rounded text-green-400 font-bold flex gap-1 items-center"><i data-lucide="play" class="w-3 h-3"></i> Run</button><button class="editor-pub hover:bg-white/10 px-2 py-1 rounded text-purple-400 font-bold flex gap-1 items-center"><i data-lucide="cloud-upload" class="w-3 h-3"></i> Publish</button><span class="text-gray-500">|</span><span class="editor-filename text-gray-400">Untitled</span></div><div class="editor-msg text-green-400 opacity-0 transition-opacity">Saved!</div></div><textarea class="editor-content flex-1 bg-[#1e1e1e] text-gray-200 p-4 terminal-font resize-none focus:outline-none text-sm leading-relaxed" spellcheck="false" placeholder="<html>...</html>"></textarea></div>`, init: (id, root, filePath) => { const ta = root.querySelector('.editor-content'); const label = root.querySelector('.editor-filename'); const msg = (txt) => { const el = root.querySelector('.editor-msg'); el.innerText = txt; el.classList.remove('opacity-0'); setTimeout(() => el.classList.add('opacity-0'), 2000); }; if(filePath) { label.innerText = filePath; const f = fs.getPath(filePath); if(f) ta.value = f.content; } root.querySelector('.editor-save').onclick = () => { let path = filePath; if (!path) path = prompt("Save as (e.g. /home/user/apps/myapp.html):"); if (!path) return; if (!path.includes('.')) path += '.html'; if(path.includes('/apps/') && !fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir'); if(fs.createPath(path, 'file', ta.value)) { filePath = path; label.innerText = path; msg("Saved!"); } }; root.querySelector('.editor-run').onclick = () => window.openApp('runner', { content: ta.value, name: filePath || 'Preview' }); root.querySelector('.editor-pub').onclick = () => window.openPublishModal(async (name, desc, author) => { alert("Publishing requires a backend connection. Currently running in offline mode."); closePublishModal(); }); } },
             community: { 
                 title: 'Nexus Store', icon: 'shopping-bag', color: 'text-green-400', img: svgStore,
                 width: '900px', height: '600px',
                 render: () => `<iframe src="https://fdfdfdsd0-ux.github.io/Nexus-app-store/" class="w-full h-full border-none bg-white" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>`
             },
-            appManager: { title: 'My Apps', icon: 'package', color: 'text-yellow-400', render: () => `<div class="h-full bg-gray-900 text-white flex flex-col"><div class="p-6 border-b border-gray-800 bg-gray-900 flex justify-between items-center"><div><h1 class="text-2xl font-bold flex items-center gap-3"><i data-lucide="package" class="text-yellow-400"></i> My Apps</h1><p class="text-gray-400 text-sm mt-1">Manage local applications.</p></div><button onclick="document.getElementById('app-uploader').click()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm font-bold flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Import File</button></div><div class="app-list flex-1 overflow-y-auto p-6 grid grid-cols-1 gap-3"><div class="text-gray-500 italic">No apps installed.</div></div></div>`, init: (id, root) => { const list = root.querySelector('.app-list'); const appsDir = fs.getPath('/home/user/apps'); if(appsDir && appsDir.children) { list.innerHTML = ''; Object.entries(appsDir.children).forEach(([name, data]) => { const row = document.createElement('div'); row.className = "bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between items-center hover:border-yellow-500 transition-colors"; row.innerHTML = `<div class="flex items-center gap-3"><i data-lucide="box" class="text-orange-400"></i><span class="font-medium">${name}</span></div><div class="flex gap-2"><button class="px-3 py-1.5 bg-green-700 hover:bg-green-600 rounded text-xs share-btn" title="Upload to Community Store">Share</button><button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs run-btn">Run</button><button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs edit-btn">Edit</button><button class="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-200 rounded text-xs delete-btn">Delete</button></div>`; const path = `/home/user/apps/${name}`; row.querySelector('.run-btn').onclick = () => window.openApp('runner', path); row.querySelector('.edit-btn').onclick = () => window.openApp('editor', path); row.querySelector('.share-btn').onclick = async () => { if(!currentUser) { alert("Connecting..."); return; } const n = prompt("Name for Store:", name.replace('.html','')); if(!n) return; try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'apps'), { name: n, content: data.content, author: 'User', timestamp: serverTimestamp() }); alert("Shared!"); } catch(e) { alert(e.message); } }; row.querySelector('.delete-btn').onclick = () => { if(confirm("Delete?")) { fs.deletePath(path); row.remove(); } }; list.appendChild(row); }); lucide.createIcons({root: list}); } } },
+            appManager: { title: 'My Apps', icon: 'package', color: 'text-yellow-400', render: () => `<div class="h-full bg-gray-900 text-white flex flex-col"><div class="p-6 border-b border-gray-800 bg-gray-900 flex justify-between items-center"><div><h1 class="text-2xl font-bold flex items-center gap-3"><i data-lucide="package" class="text-yellow-400"></i> My Apps</h1><p class="text-gray-400 text-sm mt-1">Manage local applications.</p></div><button onclick="document.getElementById('app-uploader').click()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm font-bold flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Import File</button></div><div class="app-list flex-1 overflow-y-auto p-6 grid grid-cols-1 gap-3"><div class="text-gray-500 italic">No apps installed.</div></div></div>`, init: (id, root) => { const list = root.querySelector('.app-list'); const appsDir = fs.getPath('/home/user/apps'); if(appsDir && appsDir.children) { list.innerHTML = ''; Object.entries(appsDir.children).forEach(([name, data]) => { const row = document.createElement('div'); row.className = "bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between items-center hover:border-yellow-500 transition-colors"; row.innerHTML = `<div class="flex items-center gap-3"><i data-lucide="box" class="text-orange-400"></i><span class="font-medium">${name}</span></div><div class="flex gap-2"><button class="px-3 py-1.5 bg-green-700 hover:bg-green-600 rounded text-xs share-btn" title="Upload to Community Store">Share</button><button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs run-btn">Run</button><button class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs edit-btn">Edit</button><button class="px-3 py-1.5 bg-red-900/50 hover:bg-red-900 text-red-200 rounded text-xs delete-btn">Delete</button></div>`; const path = `/home/user/apps/${name}`; row.querySelector('.run-btn').onclick = () => window.openApp('runner', path); row.querySelector('.edit-btn').onclick = () => window.openApp('editor', path); row.querySelector('.share-btn').onclick = async () => { alert("Sharing requires a backend connection. Currently running in offline mode."); }; row.querySelector('.delete-btn').onclick = () => { if(confirm("Delete?")) { fs.deletePath(path); row.remove(); } }; list.appendChild(row); }); lucide.createIcons({root: list}); } } },
             
             videoPlayer: { 
                 title: 'Video Player', icon: 'video', color: 'text-purple-400', width: '640px', height: '400px', 
@@ -1695,210 +1912,7 @@
                     if (verDisplay && typeof TARGET_VERSION !== 'undefined') verDisplay.innerText = TARGET_VERSION;
                 }
             },
-            welcome: { title: 'Welcome', icon: 'info', color: 'text-purple-400', render: () => `<div class="h-full bg-gradient-to-br from-gray-900 to-blue-900 text-white p-8 flex flex-col items-center justify-center text-center"><h1 class="text-3xl font-bold mb-2">Nexus OS 4.20</h1><p class="mb-4">Now with Workspaces & Realtime Community!</p><button onclick="closeWindow(this.closest('.window').id)" class="px-6 py-2 bg-blue-500 rounded">Start</button></div>` },
-            music: { 
-                title: 'Nexus Music', icon: 'music', color: 'text-[#1db954]', 
-                width: '850px', height: '600px',
-                render: () => `<div class="h-full flex flex-col bg-[#121212] text-gray-300 font-sans select-none overflow-hidden rounded-b-lg">
-                    <div class="flex-1 flex overflow-hidden">
-                        <!-- Sidebar -->
-                        <div class="w-60 bg-black p-5 flex flex-col gap-6 shrink-0 z-10">
-                            <div class="text-white font-bold text-xl flex items-center gap-2"><i data-lucide="music" class="text-[#1db954]"></i> Nexus Music</div>
-                            <nav class="flex flex-col gap-4 text-sm font-bold">
-                                <button class="flex items-center gap-4 text-white hover:text-white transition"><i data-lucide="home"></i> Home</button>
-                                <button class="flex items-center gap-4 hover:text-white transition"><i data-lucide="search"></i> Search</button>
-                                <button class="flex items-center gap-4 hover:text-white transition"><i data-lucide="library"></i> Your Library</button>
-                                <div class="h-4"></div>
-                                <button class="flex items-center gap-4 hover:text-white transition" onclick="document.getElementById('music-upload-input').click()">
-                                    <div class="w-6 h-6 bg-gray-300 text-black flex items-center justify-center rounded-sm"><i data-lucide="plus" class="w-4 h-4"></i></div>
-                                    Upload Files
-                                </button>
-                                <button class="flex items-center gap-4 hover:text-white transition" onclick="document.getElementById('music-folder-input').click()">
-                                    <div class="w-6 h-6 bg-gray-300 text-black flex items-center justify-center rounded-sm"><i data-lucide="folder-plus" class="w-4 h-4"></i></div>
-                                    Upload Folder
-                                </button>
-                                <input type="file" id="music-upload-input" accept="audio/*" multiple class="hidden">
-                                <input type="file" id="music-folder-input" webkitdirectory directory multiple class="hidden">
-                            </nav>
-                            <div class="border-t border-gray-800 mt-2 pt-4 flex-1 overflow-y-auto custom-scrollbar">
-                                <div class="flex flex-col gap-3 text-sm">
-                                    <span class="hover:text-white cursor-pointer truncate">Local Files</span>
-                                    <span class="hover:text-white cursor-pointer truncate">Recently Added</span>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Main Content -->
-                        <div class="flex-1 bg-gradient-to-b from-[#2a2a2a] to-[#121212] overflow-y-auto custom-scrollbar flex flex-col relative z-0">
-                            <div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-[#1db954]/20 to-transparent pointer-events-none"></div>
-                            <div class="p-6 flex-1 relative z-10">
-                                <h2 class="text-2xl font-bold text-white mb-6 mt-2">Recommended for You</h2>
-                                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8" id="music-recommendations"></div>
-                                
-                                <div class="flex items-center justify-between mb-4">
-                                    <h2 class="text-2xl font-bold text-white">All Tracks</h2>
-                                    <button class="w-12 h-12 bg-[#1db954] rounded-full flex items-center justify-center hover:scale-105 transition shadow-xl text-black" onclick="mediaManager.playTrack(0)"><i data-lucide="play" class="w-5 h-5 ml-1 fill-current"></i></button>
-                                </div>
-                                
-                                <div class="flex flex-col w-full text-sm">
-                                    <div class="flex text-gray-400 border-b border-gray-800 pb-2 mb-2 px-4 uppercase tracking-wider text-xs">
-                                        <div class="w-8 text-center">#</div>
-                                        <div class="flex-1">Title</div>
-                                        <div class="flex-1">Artist</div>
-                                        <div class="w-12 text-right"><i data-lucide="clock" class="w-4 h-4 inline-block"></i></div>
-                                    </div>
-                                    <div id="music-track-list" class="flex flex-col"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Bottom Playback Bar -->
-                    <div class="h-24 bg-[#181818] border-t border-[#282828] flex items-center justify-between px-4 shrink-0 z-20">
-                        <div class="flex items-center gap-3 w-1/3">
-                            <img src="https://placehold.co/150x150/1f2937/ffffff.png?text=Nexus" id="app-media-cover" class="w-14 h-14 rounded shadow object-cover">
-                            <div class="overflow-hidden">
-                                <div class="text-sm text-white font-bold truncate hover:underline cursor-pointer" id="app-media-title">No Track Selected</div>
-                                <div class="text-xs text-gray-400 truncate hover:underline cursor-pointer" id="app-media-artist">-</div>
-                            </div>
-                            <button class="text-[#1db954] hover:text-white ml-2"><i data-lucide="heart" class="w-4 h-4 fill-current"></i></button>
-                        </div>
-                        <div class="flex flex-col items-center w-1/3 max-w-[500px]">
-                            <div class="flex items-center gap-5 mb-2">
-                                <button class="text-gray-400 hover:text-white transition"><i data-lucide="shuffle" class="w-4 h-4"></i></button>
-                                <button class="text-gray-400 hover:text-white transition" onclick="mediaManager.prev()"><i data-lucide="skip-back" class="w-5 h-5 fill-current"></i></button>
-                                <button class="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition" onclick="mediaManager.togglePlay()" id="app-media-play"><i data-lucide="play" class="w-4 h-4 ml-1 fill-current"></i></button>
-                                <button class="text-gray-400 hover:text-white transition" onclick="mediaManager.next()"><i data-lucide="skip-forward" class="w-5 h-5 fill-current"></i></button>
-                                <button class="text-gray-400 hover:text-white transition"><i data-lucide="repeat" class="w-4 h-4"></i></button>
-                            </div>
-                            <div class="flex items-center gap-2 w-full text-xs text-gray-400 group">
-                                <span id="app-media-time">0:00</span>
-                                <input type="range" id="app-media-progress" class="flex-1 h-1 bg-gray-600 rounded-full appearance-none cursor-pointer accent-white hover:accent-[#1db954] transition" value="0" min="0" max="100">
-                                <span id="app-media-duration">0:00</span>
-                            </div>
-                        </div>
-                        <div class="w-1/3 flex justify-end items-center gap-3 text-gray-400">
-                            <i data-lucide="mic-2" class="w-4 h-4 hover:text-white cursor-pointer"></i>
-                            <i data-lucide="list-music" class="w-4 h-4 hover:text-white cursor-pointer"></i>
-                            <i data-lucide="volume-2" class="w-4 h-4"></i>
-                            <input type="range" id="app-media-volume" class="w-24 h-1 bg-gray-600 rounded-full appearance-none cursor-pointer accent-white hover:accent-[#1db954]" value="100" min="0" max="100">
-                        </div>
-                    </div>
-                </div>`,
-                init: (id, root) => {
-                    const uploader = root.querySelector('#music-upload-input');
-                    uploader.onchange = (e) => {
-                        const files = Array.from(e.target.files);
-                        files.forEach(file => mediaManager.addTrack(file, files.length > 1));
-                        if(files.length > 1) window.notify("Music Uploaded", `Added ${files.length} tracks to Library`, 3000);
-                        e.target.value = ''; // Reset
-                    };
-
-                    const folderUploader = root.querySelector('#music-folder-input');
-                    folderUploader.onchange = (e) => {
-                        const files = Array.from(e.target.files).filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|flac)$/i.test(f.name));
-                        if(files.length === 0) { alert("No audio files found in this folder."); return; }
-                        files.forEach(file => mediaManager.addTrack(file, true));
-                        window.notify("Folder Uploaded", `Added ${files.length} tracks to Library`, 3000);
-                        e.target.value = ''; // Reset
-                    };
-
-                    const recContainer = root.querySelector('#music-recommendations');
-                    const listContainer = root.querySelector('#music-track-list');
-
-                    window.refreshMusicAppUI = () => {
-                        recContainer.innerHTML = '';
-                        listContainer.innerHTML = '';
-                        
-                        // Render Top Cards (Recommendations)
-                        const recs = mediaManager.playlist.slice(0, 4);
-                        recs.forEach((track, i) => {
-                            const card = document.createElement('div');
-                            card.className = "bg-[#181818] p-4 rounded-md hover:bg-[#282828] transition cursor-pointer group relative shadow-lg";
-                            card.innerHTML = `
-                                <div class="relative w-full aspect-square mb-4 shadow-black shadow-lg">
-                                    <img src="${track.cover || 'https://placehold.co/150x150/1f2937/ffffff.png?text=Audio'}" class="w-full h-full object-cover rounded shadow">
-                                    <button class="absolute bottom-2 right-2 w-10 h-10 bg-[#1db954] text-black rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-105 transition shadow-xl translate-y-2 group-hover:translate-y-0">
-                                        <i data-lucide="play" class="w-5 h-5 ml-1 fill-current"></i>
-                                    </button>
-                                </div>
-                                <div class="font-bold text-white truncate">${track.title}</div>
-                                <div class="text-sm text-gray-400 truncate mt-1">${track.artist}</div>
-                            `;
-                            card.onclick = () => mediaManager.playTrack(mediaManager.playlist.indexOf(track));
-                            recContainer.appendChild(card);
-                        });
-
-                        // Render List View
-                        mediaManager.playlist.forEach((track, i) => {
-                            const row = document.createElement('div');
-                            row.className = "track-row flex items-center text-gray-300 hover:bg-white/10 p-2 px-4 rounded cursor-pointer transition group";
-                            row.innerHTML = `
-                                <div class="w-8 text-center text-gray-400 track-num group-hover:hidden">${i + 1}</div>
-                                <div class="w-8 text-center text-white hidden group-hover:block"><i data-lucide="play" class="w-4 h-4 fill-current inline"></i></div>
-                                <div class="flex-1 flex items-center gap-3">
-                                    <img src="${track.cover}" class="w-10 h-10 rounded shadow-sm object-cover">
-                                    <div class="font-bold text-white track-title truncate">${track.title}</div>
-                                </div>
-                                <div class="flex-1 truncate">${track.artist}</div>
-                                <div class="w-12 text-right">--:--</div>
-                            `;
-                            row.onclick = () => mediaManager.playTrack(i);
-                            listContainer.appendChild(row);
-                        });
-                        lucide.createIcons({root});
-                        if(window.updateMusicAppHighlight) window.updateMusicAppHighlight();
-                    };
-
-                    window.updateMusicAppHighlight = () => {
-                        const appTitle = document.getElementById('app-media-title');
-                        if(mediaManager.currentIndex >= 0 && mediaManager.playlist[mediaManager.currentIndex] && appTitle) {
-                            const t = mediaManager.playlist[mediaManager.currentIndex];
-                            appTitle.innerText = t.title;
-                            document.getElementById('app-media-artist').innerText = t.artist;
-                            const img = document.getElementById('app-media-cover');
-                            if(img && t.cover) img.src = t.cover;
-                            
-                            const btn = document.getElementById('app-media-play');
-                            if(btn) {
-                                btn.innerHTML = mediaManager.audio.paused ? '<i data-lucide="play" class="w-4 h-4 ml-1 fill-current"></i>' : '<i data-lucide="pause" class="w-4 h-4 fill-current"></i>';
-                                lucide.createIcons({root: btn});
-                            }
-                        }
-
-                        // Update list highlighting
-                        root.querySelectorAll('.track-row').forEach((row, idx) => {
-                            const num = row.querySelector('.track-num');
-                            const title = row.querySelector('.track-title');
-                            if(idx === mediaManager.currentIndex) {
-                                title.classList.add('text-[#1db954]'); title.classList.remove('text-white');
-                                if(num) { num.innerHTML = '<i data-lucide="bar-chart-2" class="w-4 h-4 text-[#1db954]"></i>'; num.classList.remove('group-hover:hidden'); row.children[1].classList.remove('group-hover:block'); lucide.createIcons({root:num}); }
-                            } else {
-                                title.classList.remove('text-[#1db954]'); title.classList.add('text-white');
-                                if(num) { num.innerHTML = idx + 1; num.classList.add('group-hover:hidden'); row.children[1].classList.add('group-hover:block'); }
-                            }
-                        });
-                    };
-
-                    window.refreshMusicAppUI();
-
-                    const appProg = root.querySelector('#app-media-progress');
-                    appProg.addEventListener('input', (e) => {
-                        if(mediaManager.audio.duration) mediaManager.audio.currentTime = (e.target.value / 100) * mediaManager.audio.duration;
-                    });
-
-                    const vol = root.querySelector('#app-media-volume');
-                    vol.addEventListener('input', (e) => {
-                        mediaManager.audio.volume = e.target.value / 100;
-                    });
-                    
-                    // Sync initial states
-                    vol.value = mediaManager.audio.volume * 100;
-                    if(mediaManager.audio.duration) {
-                        appProg.value = (mediaManager.audio.currentTime / mediaManager.audio.duration) * 100;
-                        document.getElementById('app-media-time').innerText = mediaManager.formatTime(mediaManager.audio.currentTime);
-                        document.getElementById('app-media-duration').innerText = mediaManager.formatTime(mediaManager.audio.duration);
-                    }
-                }
-            }
+            welcome: { title: 'Welcome', icon: 'info', color: 'text-purple-400', render: () => `<div class="h-full bg-gradient-to-br from-gray-900 to-blue-900 text-white p-8 flex flex-col items-center justify-center text-center"><h1 class="text-3xl font-bold mb-2">Nexus OS 4.20</h1><p class="mb-4">Now with Workspaces & Realtime Community!</p><button onclick="closeWindow(this.closest('.window').id)" class="px-6 py-2 bg-blue-500 rounded">Start</button></div>` }
         };
 
         let zIndex = 100;
@@ -2101,7 +2115,6 @@
                 const d = document.createElement('div'); 
                 d.className = "flex flex-col items-center gap-1 hover:bg-white/5 rounded p-2 cursor-pointer w-24 relative transition-colors";
                 
-                // Apply saved coordinates if they exist
                 if (data.x !== undefined && data.y !== undefined) {
                     d.style.position = 'absolute';
                     d.style.left = data.x + 'px';
@@ -2160,7 +2173,7 @@
                 };
 
                 d.onmousedown = (e) => {
-                    if (e.button !== 0) return; // Only allow drag on left click
+                    if (e.button !== 0) return; 
                     e.preventDefault();
                     let startX = e.clientX, startY = e.clientY;
                     let isDragging = false;
@@ -2197,20 +2210,17 @@
                         if (!isDragging) {
                             handleOpen();
                         } else {
-                            // Snap to Grid Logic
-                            const gridX = 100; // Snap grid width
-                            const gridY = 100; // Snap grid height
+                            const gridX = 100;
+                            const gridY = 100; 
                             let finalX = Math.round(parseFloat(d.style.left) / gridX) * gridX;
                             let finalY = Math.round(parseFloat(d.style.top) / gridY) * gridY;
                             
-                            // Keep in bounds
                             finalX = Math.max(0, finalX);
                             finalY = Math.max(0, finalY);
 
                             d.style.left = finalX + 'px';
                             d.style.top = finalY + 'px';
 
-                            // Save new coordinates persistently
                             data.x = finalX;
                             data.y = finalY;
                             fs.updateNode();
