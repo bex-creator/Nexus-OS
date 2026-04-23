@@ -812,11 +812,16 @@
         window.mediaManager = mediaManager;
 
         const chatManager = {
-            ws: null,
+            conn: null,
             myClientId: localStorage.getItem('nexus_msg_client_id') || Math.random().toString(36).substring(2, 10),
             myName: localStorage.getItem('nexus_msg_name_v2') || '',
             init: () => {
                 localStorage.setItem('nexus_msg_client_id', chatManager.myClientId);
+                let rooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
+                if (rooms.length === 0) {
+                    rooms.push({ id: 'global', name: 'Global Public Chat', topic: 'nexus_os_global_chat_v420', type: 'public' });
+                    localStorage.setItem('nexus_msg_rooms', JSON.stringify(rooms));
+                }
                 chatManager.reconnect();
             },
             updateName: (name) => {
@@ -824,7 +829,7 @@
                 localStorage.setItem('nexus_msg_name_v2', name);
             },
             reconnect: () => {
-                if (chatManager.ws) chatManager.ws.close();
+                if (chatManager.conn) chatManager.conn.close();
                 const rooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
                 
                 let topics = rooms.map(r => r.topic);
@@ -838,21 +843,18 @@
                 if (topics.length === 0) return;
                 const topicsStr = topics.join(',');
                 
-                chatManager.ws = new WebSocket(`wss://ntfy.sh/${topicsStr}/ws`);
+                // Use EventSource (HTTPS) instead of WebSocket (WSS) to bypass strict Canvas CSP/sandbox restrictions
+                chatManager.conn = new EventSource(`https://ntfy.sh/${topicsStr}/sse`);
                 
-                chatManager.ws.onopen = () => {
+                chatManager.conn.onopen = () => {
                     if (window.nexusChatStatusCallback) window.nexusChatStatusCallback(true);
                 };
 
-                chatManager.ws.onerror = () => {
+                chatManager.conn.onerror = () => {
                     if (window.nexusChatStatusCallback) window.nexusChatStatusCallback(false);
                 };
 
-                chatManager.ws.onclose = () => {
-                    if (window.nexusChatStatusCallback) window.nexusChatStatusCallback(false);
-                };
-
-                chatManager.ws.onmessage = (e) => {
+                chatManager.conn.onmessage = (e) => {
                     const data = JSON.parse(e.data);
                     if (data.event === 'message') {
                         try {
@@ -1302,12 +1304,8 @@
                     };
                     input.oninput = checkInput;
 
-                    // Initialize Default Global Room if none exist
-                    if (rooms.length === 0) {
-                        rooms.push({ id: 'global', name: 'Global Public Chat', topic: 'nexus_os_global_chat_v420', type: 'public' });
-                        saveRooms();
-                        chatManager.reconnect(); // Reconnect global
-                    }
+                    // Ensure rooms are synced in case background service added them
+                    rooms = JSON.parse(localStorage.getItem('nexus_msg_rooms') || '[]');
 
                     function saveRooms() { localStorage.setItem('nexus_msg_rooms', JSON.stringify(rooms)); }
                     function saveHistory() { localStorage.setItem('nexus_msg_history_v3', JSON.stringify(chatHistory)); }
@@ -1323,17 +1321,23 @@
 
                     window.nexusChatAppCallback = (payload, targetRoom) => {
                         chatHistory = JSON.parse(localStorage.getItem('nexus_msg_history_v3') || '{}'); // Refetch
+                        
+                        const myWin = document.getElementById(id);
+                        const isFocused = myWin && myWin.classList.contains('active-window') && !myWin.classList.contains('minimized') && !myWin.classList.contains('hidden-workspace');
+                        const isMe = payload.sender === myName && payload.clientId === myClientId;
+
                         if (activeRoomId === targetRoom.id) {
                             appendMessage(payload);
-                        } else {
-                            const isMe = payload.sender === myName && payload.clientId === myClientId;
-                            if (!isMe) {
-                                let cleanText = payload.text;
-                                if (cleanText.startsWith('[IMAGE:')) cleanText = '🖼️ Sent an image';
-                                window.notify(`New message in ${targetRoom.name}`, `<b>${payload.sender}:</b> ${cleanText}`, 5000);
-                                try { new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3').play(); } catch(e) {}
-                            }
                         }
+                        
+                        // Notify via OS if we aren't fully focused or we are looking at a different room
+                        if (!isMe && (!isFocused || activeRoomId !== targetRoom.id)) {
+                            let cleanText = payload.text;
+                            if (cleanText.startsWith('[IMAGE:')) cleanText = '🖼️ Sent an image';
+                            window.notify(`New message in ${targetRoom.name}`, `<b>${payload.sender}:</b> ${cleanText}`, 5000);
+                            try { new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3').play(); } catch(e) {}
+                        }
+                        
                         renderRooms(); // Update sidebar preview text
                     };
 
@@ -1479,7 +1483,7 @@
                         msgContainer.scrollTop = msgContainer.scrollHeight;
                         
                         // Update status if currently connected via global OS
-                        if (chatManager.ws && chatManager.ws.readyState === 1) {
+                        if (chatManager.conn && chatManager.conn.readyState === 1) {
                             root.querySelector('#msg-active-status').classList.remove('hidden');
                         }
                     }
