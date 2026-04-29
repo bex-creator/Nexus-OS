@@ -1016,6 +1016,7 @@
                 "Reminders": { type: 'link', action: "openApp('reminders')", icon: 'bell', color: 'text-yellow-400' },
                 "Nexus Browser": { type: 'link', action: "openApp('browser', 'home')", icon: 'globe', color: 'text-cyan-400', img: svgNexus },
                 "Global Chat": { type: 'link', action: "openApp('messagesApp')", icon: 'message-square', color: 'text-blue-500' },
+                "Nexus Vids": { type: 'link', action: "openApp('runner', { name: 'Nexus Vids', url: 'https://bex-creator.github.io/nexus-vids/' })", icon: 'play-square', color: 'text-red-500' },
                 "Web Search": { type: 'link', action: "openApp('runner', { name: 'Google Search', url: 'https://www.google.com/webhp?igu=1' })", icon: 'search', color: 'text-blue-400' },
                 "My Custom App": { type: 'link', action: "openApp('myCustomApp')", icon: 'star', color: 'text-yellow-400' },
                 "Paintings": { type: 'dir', children: {} }
@@ -1061,6 +1062,10 @@
             
             if (!deskNode.children["Global Chat"]) {
                 deskNode.children["Global Chat"] = { type: 'link', action: "openApp('messagesApp')", icon: 'message-square', color: 'text-blue-500' };
+            }
+            
+            if (!deskNode.children["Nexus Vids"]) {
+                deskNode.children["Nexus Vids"] = { type: 'link', action: "openApp('runner', { name: 'Nexus Vids', url: 'https://bex-creator.github.io/nexus-vids/' })", icon: 'play-square', color: 'text-red-500' };
             }
             
             if (!deskNode.children["My Custom App"]) {
