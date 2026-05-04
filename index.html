@@ -1292,25 +1292,6 @@
 
                                     <div class="flex justify-end gap-2 mt-2 pt-4 border-t border-gray-100 dark:border-gray-800">
                                         <button id="msg-new-cancel" class="px-5 py-2.5 rounded-full text-[#0b57d0] dark:text-[#a8c7fa] hover:bg-[#f0f4f9] dark:hover:bg-[#131314] font-medium transition-colors w-full">Cancel</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Invite Modal -->
-                            <div id="msg-invite-modal" class="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-                                <div class="bg-white dark:bg-[#1e1e1f] w-full max-w-sm rounded-[1.5rem] shadow-2xl p-6 transform scale-95 transition-all" id="msg-invite-modal-content">
-                                    <h2 class="text-xl font-normal mb-1 text-gray-900 dark:text-white">Invite to Chat</h2>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Share this secret code with friends so they can join this private room.</p>
-                                    <div class="flex gap-2 items-center mb-6">
-                                        <input type="text" id="msg-invite-code-display" readonly class="flex-1 bg-[#f0f4f9] dark:bg-[#131314] border border-transparent rounded-lg px-4 py-3 text-lg font-mono text-center text-blue-600 dark:text-blue-400 tracking-wider outline-none selection:bg-blue-200/50">
-                                        <button id="msg-invite-copy-btn" class="w-12 h-12 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Copy Code">
-                                            <i data-lucide="copy" class="w-5 h-5"></i>
-                                        </button>
-                                    </div>
-                                    <div class="flex justify-end">
-                                        <button id="msg-invite-close" class="px-5 py-2.5 rounded-full bg-[#f0f4f9] dark:bg-[#131314] hover:bg-gray-200 dark:hover:bg-[#282a2c] text-gray-800 dark:text-gray-200 font-medium transition-colors">Done</button>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -2038,7 +2019,7 @@
                 init: (id, root, startUrl) => { 
                     const tabBar = root.querySelector('.tab-bar-container'); const contentContainer = root.querySelector('.tab-content-container'); const input = root.querySelector('.browser-url'); const newTabBtn = root.querySelector('.new-tab-btn'); const proxyBtn = root.querySelector('.proxy-toggle'); let proxyEnabled = false; let tabs = {}; let activeTabId = null; let tabCounter = 0; 
                     
-                    proxyBtn.onclick = () => { proxyEnabled = !proxyEnabled; if(proxyEnabled) { proxyBtn.innerHTML = '<i data-lucide="shield-check" class="w-4 h-4 text-green-400"></i>'; proxyBtn.title = "Nexus Proxy: ON (Bypassing blocks)"; proxyBtn.classList.remove('text-red-400', 'hover:bg-red-500/20'); proxyBtn.classList.add('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); } else { proxyBtn.innerHTML = '<i data-lucide="shield-off" class="w-4 h-4 text-red-400"></i>'; proxyBtn.title = "Nexus Proxy: OFF (Click to bypass blocks)"; proxyBtn.classList.remove('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); proxyBtn.classList.add('text-red-400', 'hover:bg-red-500/20'); } lucide.createIcons({root: proxyBtn}); if(tabs[activeTabId] && tabs[activeTabId].url !== 'home') load(tabs[activeTabId].url); };
+                    proxyBtn.onclick = () => { proxyEnabled = !proxyEnabled; if(proxyEnabled) { proxyBtn.innerHTML = '<i data-lucide="shield-check" class="w-4 h-4 text-green-400"></i>'; proxyBtn.title = "Nexus Proxy: ON (Bypassing blocks)"; proxyBtn.classList.remove('text-red-400', 'hover:bg-red-500/20'); proxyBtn.classList.add('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); window.notify("Proxy Enabled", "Advanced routing active."); } else { proxyBtn.innerHTML = '<i data-lucide="shield-off" class="w-4 h-4 text-red-400"></i>'; proxyBtn.title = "Nexus Proxy: OFF (Click to bypass blocks)"; proxyBtn.classList.remove('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); proxyBtn.classList.add('text-red-400', 'hover:bg-red-500/20'); window.notify("Proxy Disabled", "Direct connection active."); } lucide.createIcons({root: proxyBtn}); if(tabs[activeTabId] && tabs[activeTabId].url !== 'home') load(tabs[activeTabId].url); };
 
                     const createTab = (url = 'home') => { const tId = 'tab-' + (++tabCounter); const tabBtn = document.createElement('div'); tabBtn.className = 'chrome-tab group flex items-center justify-between gap-2 px-3 py-1.5 text-cyan-700 hover:bg-cyan-900/30 rounded-t-md min-w-[140px] max-w-[220px] cursor-pointer border-t border-l border-r border-transparent relative shrink-0 transition-all mt-1'; tabBtn.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i data-lucide="zap" class="w-3 h-3 shrink-0 tab-icon"></i><span class="truncate text-xs tab-title">New Tab</span></div><button class="close-tab hover:bg-cyan-500/30 hover:text-cyan-200 text-cyan-600 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all shrink-0"><i data-lucide="x" class="w-3 h-3"></i></button>`; tabBar.insertBefore(tabBtn, newTabBtn); const contentDiv = document.createElement('div'); contentDiv.className = 'absolute inset-0 w-full h-full hidden bg-white'; const frame = document.createElement('iframe'); frame.className = 'w-full h-full border-none hidden bg-white'; frame.sandbox = 'allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts'; const mock = document.createElement('div'); mock.className = 'absolute inset-0 bg-[#0a0a0f] overflow-y-auto hidden'; contentDiv.appendChild(frame); contentDiv.appendChild(mock); contentContainer.appendChild(contentDiv); tabs[tId] = { btn: tabBtn, content: contentDiv, frame, mock, url: '', title: 'New Tab' }; tabBtn.onmousedown = (e) => { if(!e.target.closest('.close-tab')) switchTab(tId); }; tabBtn.querySelector('.close-tab').onmousedown = (e) => { e.stopPropagation(); closeTab(tId); }; lucide.createIcons({root: tabBtn}); switchTab(tId); load(url, tId); }; 
                     const switchTab = (tId) => { if(!tabs[tId]) return; activeTabId = tId; Object.keys(tabs).forEach(id => { const t = tabs[id]; if(id === tId) { t.btn.classList.add('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.remove('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.remove('hidden'); input.value = (t.url === 'home') ? '' : t.url; } else { t.btn.classList.remove('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.add('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.add('hidden'); } }); }; 
@@ -2063,26 +2044,9 @@
                         t.frame.removeAttribute('srcdoc');
                         t.frame.src = finalUrl;
                     } else if(proxyEnabled && !target.startsWith('file://') && !target.includes('google.com')) { 
-                        t.frame.removeAttribute('src');
-                        t.frame.srcdoc = "<html style='background:#0a0a0f'><body style='color:#22d3ee;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;'>Fetching via Nexus Proxy...</body></html>";
-                        fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(target))
-                            .then(res => {
-                                if (!res.ok) throw new Error(`Network response was not ok: ${res.status}`);
-                                return res.text();
-                            })
-                            .then(html => {
-                                const origin = new URL(target).origin;
-                                let modified = html;
-                                
-                                // Inject a listener to catch link clicks and GET form submissions inside the proxy iframe
-                                const injection = `<base href="${origin}/"><script>document.addEventListener('click',function(e){const a=e.target.closest('a');if(a&&a.href&&!a.href.startsWith('javascript:')){e.preventDefault();window.parent.postMessage({type:'NEXUS_PROXY_NAV',url:a.href,tabId:'${tId}'},'*');}});document.addEventListener('submit',function(e){const f=e.target;if(f&&f.method.toLowerCase()==='get'){e.preventDefault();const u=new URL(f.action||window.location.href);u.search=new URLSearchParams(new FormData(f)).toString();window.parent.postMessage({type:'NEXUS_PROXY_NAV',url:u.toString(),tabId:'${tId}'},'*');}});\<\/script>`;
-                                
-                                if(modified.match(/<head>/i)) modified = modified.replace(/<head>/i, `<head>${injection}`);
-                                else modified = injection + modified;
-                                
-                                t.frame.srcdoc = modified;
-                            })
-                            .catch(err => { t.frame.srcdoc = `<html style='background:#0a0a0f'><body style='color:#ef4444;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;'><i data-lucide="alert-triangle" style="width:48px;height:48px;margin-bottom:16px;"></i>Proxy Error: ${err.message}</body></html>`; });
+                        t.frame.removeAttribute('srcdoc');
+                        // Use Via (Hypothesis) Reverse Proxy for robust dynamic website rendering
+                        t.frame.src = 'https://via.hypothes.is/' + finalUrl;
                     } else {
                         t.frame.removeAttribute('srcdoc');
                         t.frame.src = finalUrl; 
@@ -2090,21 +2054,6 @@
                     
                     if(activeTabId === tId) input.value = target; try { const urlObj = new URL(finalUrl); t.title = urlObj.hostname; const img = document.createElement('img'); img.src = `https://s2.googleusercontent.com/s2/favicons?domain=${urlObj.hostname}&sz=16`; img.className = 'w-3 h-3 shrink-0 tab-icon rounded-sm'; if(iconEl) iconEl.replaceWith(img); } catch { t.title = target; } titleEl.innerText = t.title; }; 
                     
-                    const navListener = (e) => {
-                        if (e.data && e.data.type === 'NEXUS_PROXY_NAV' && tabs[e.data.tabId]) {
-                            if (activeTabId === e.data.tabId) input.value = e.data.url;
-                            load(e.data.url, e.data.tabId);
-                        }
-                    };
-                    window.addEventListener('message', navListener);
-                    
-                    windows[id] = windows[id] || {};
-                    const oldUnsub = windows[id].unsub;
-                    windows[id].unsub = () => {
-                        if (oldUnsub) oldUnsub();
-                        window.removeEventListener('message', navListener);
-                    };
-
                     newTabBtn.onclick = () => createTab('home'); root.querySelector('.browser-home').onclick = () => load('home'); root.querySelector('.browser-reload').onclick = () => load(tabs[activeTabId].url); root.querySelector('.browser-back').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.back(); } catch(e){} }; root.querySelector('.browser-forward').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.forward(); } catch(e){} }; root.querySelector('.browser-external').onclick = () => { if(tabs[activeTabId] && tabs[activeTabId].url && tabs[activeTabId].url !== 'home') window.open(tabs[activeTabId].url, '_blank'); }; input.onkeydown = (e) => { if(e.key==='Enter') load(input.value); }; createTab(startUrl || 'home'); 
                 } 
             },
