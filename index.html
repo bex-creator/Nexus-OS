@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -70,7 +70,7 @@
         .resizer.corner { cursor: nwse-resize; right: 0; bottom: 0; width: 12px; height: 12px; z-index: 21; }
 
         .wallpaper {
-            background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop'); /* New v4 Wallpaper */
+            background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop'); 
             background-size: cover; background-position: center; transition: background-image 0.5s ease;
         }
         .task-item.active { background-color: rgba(255, 255, 255, 0.15); border-bottom: 2px solid var(--accent-color); }
@@ -195,50 +195,22 @@
         <div class="w-64 h-1 bg-gray-800 rounded mt-4 overflow-hidden"><div id="update-bar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div></div>
     </div>
 
-    <!-- Setup Screen -->
+    <!-- Firebase Auth Screen (Replaces old Setup & Login Screens) -->
     <div id="setup-screen" class="absolute inset-0 bg-black/80 backdrop-blur-xl flex flex-col justify-center items-center text-white hidden opacity-0 transition-opacity duration-500 z-[9999]">
-        <div class="bg-gray-900/90 border border-gray-700 p-8 rounded-2xl shadow-2xl w-96 flex flex-col items-center">
-            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-blue-500/50">
-                <i data-lucide="sparkles" class="w-8 h-8 text-white"></i>
+        <div class="bg-gray-900/90 border border-gray-700 p-8 rounded-2xl shadow-2xl w-96 flex flex-col items-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+            <div class="w-16 h-16 bg-black border border-gray-700 rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                <i data-lucide="shield-alert" class="w-8 h-8 text-blue-500"></i>
             </div>
-            <h1 class="text-2xl font-bold mb-2">Welcome to Nexus OS</h1>
-            <p class="text-gray-400 text-sm mb-6 text-center">Let's set up your local workspace.</p>
+            <h1 class="text-2xl font-bold mb-2 tracking-tight">Restricted System</h1>
+            <p class="text-gray-400 text-sm mb-8 text-center px-4">Nexus OS is locked. Authorized personnel only.</p>
 
-            <div class="w-full space-y-4">
-                <div>
-                    <label class="text-xs text-gray-400 uppercase font-bold ml-1">Username</label>
-                    <input type="text" id="setup-user" class="w-full bg-black/50 border border-gray-600 rounded-lg px-4 py-2 mt-1 outline-none focus:border-blue-500 text-white" placeholder="Enter username">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-400 uppercase font-bold ml-1">Password</label>
-                    <input type="password" id="setup-pass" class="w-full bg-black/50 border border-gray-600 rounded-lg px-4 py-2 mt-1 outline-none focus:border-blue-500 text-white" placeholder="Optional password">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-400 uppercase font-bold ml-1">Theme</label>
-                    <div class="flex gap-2 mt-1">
-                        <button id="theme-dark-btn" class="flex-1 bg-blue-600 text-white py-2 rounded-lg border border-blue-500 transition-colors font-semibold" onclick="selectSetupTheme('dark')">Dark</button>
-                        <button id="theme-light-btn" class="flex-1 bg-gray-800 text-gray-300 py-2 rounded-lg border border-gray-600 transition-colors font-semibold" onclick="selectSetupTheme('light')">Light</button>
-                    </div>
-                </div>
-            </div>
-
-            <button onclick="finishSetup()" class="w-full mt-8 bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors flex justify-center items-center gap-2">
-                Get Started <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            <button onclick="window.handleGoogleLogin()" class="w-full bg-white hover:bg-gray-200 text-black font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5"> Sign in with Google
             </button>
-            <p id="setup-msg" class="text-red-400 text-sm mt-4 h-5 text-center"></p>
+            
+            <div id="login-error-msg" class="w-full mt-6 p-4 bg-red-900/30 border border-red-900/50 rounded-lg text-red-400 text-sm text-center hidden"></div>
         </div>
-    </div>
-
-    <!-- Login Screen -->
-    <div id="login-screen" class="absolute inset-0 bg-black/60 backdrop-blur-xl flex flex-col justify-center items-center text-white hidden opacity-0 transition-opacity duration-500">
-        <div id="login-avatar" class="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-4xl font-bold mb-6 shadow-2xl overflow-hidden">U</div>
-        <h1 id="login-user-display" class="text-2xl font-bold mb-4">User</h1>
-        <div class="flex gap-2">
-            <input type="password" id="login-pass" class="bg-white/10 border border-white/20 rounded px-4 py-2 outline-none focus:border-blue-500 text-center w-48" placeholder="Password">
-            <button onclick="attemptLogin()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded transition-colors flex items-center gap-2 font-bold shadow-lg shadow-blue-500/30"><i data-lucide="arrow-right" class="w-5 h-5"></i></button>
-        </div>
-        <p id="login-msg" class="text-red-400 text-sm mt-4 h-5"></p>
-        <div class="absolute bottom-10 text-gray-400 text-xs" id="version-display">Nexus OS v4.20</div>
     </div>
 
     <!-- Desktop Area -->
@@ -319,7 +291,9 @@
     </div>
 
     <script type="module">
-        // Register Service Worker for Chrome PWA Installation
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
@@ -336,7 +310,71 @@
         let currentUser = null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // Reminders Global State
+        // --- Firebase Auth Setup ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBkVzoH_d_syl2iV7_1jDkQRXiKFJm7dbk",
+            authDomain: "nexus-os-b53d9.firebaseapp.com",
+            projectId: "nexus-os-b53d9",
+            storageBucket: "nexus-os-b53d9.firebasestorage.app",
+            messagingSenderId: "402314809201",
+            appId: "1:402314809201:web:ad6cfbdd0e812b9583f0d0",
+            measurementId: "G-HSB4YMRDV9"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        
+        // Strict Ban List
+        const allowedEmails = [
+            "bexlebeau30@students.cumberlandschools.org",
+            "minmotyka30@students.cumberlandschools.org"
+        ];
+        let osBooted = false;
+
+        window.handleGoogleLogin = async () => {
+            const errorMsg = document.getElementById('login-error-msg');
+            errorMsg.classList.add('hidden');
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                errorMsg.innerHTML = `<span class="block font-bold">Authentication Failed</span>${error.message}`;
+                errorMsg.classList.remove('hidden');
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            const setupScreen = document.getElementById('setup-screen');
+            if (user) {
+                if (allowedEmails.includes(user.email)) {
+                    userData = { username: user.displayName || user.email.split('@')[0], email: user.email, photo: user.photoURL, theme: 'dark' };
+                    localStorage.setItem('gemini_os_user_data', JSON.stringify(userData));
+                    
+                    setupScreen.classList.add('opacity-0', 'pointer-events-none');
+                    setTimeout(() => setupScreen.classList.add('hidden'), 500);
+                    
+                    if (osBooted) {
+                        updateUIAfterLogin();
+                        window.notify("Authentication Success", `Welcome back, ${userData.username}`);
+                    }
+                } else {
+                    signOut(auth);
+                    const errorMsg = document.getElementById('login-error-msg');
+                    errorMsg.innerHTML = `<span class="block font-bold text-red-500 mb-1">ACCESS DENIED</span>Your email<br><span class="text-white">${user.email}</span><br>is banned from this system.`;
+                    errorMsg.classList.remove('hidden');
+                    
+                    if (osBooted) {
+                        setupScreen.classList.remove('hidden', 'pointer-events-none');
+                        setTimeout(() => setupScreen.classList.remove('opacity-0'), 50);
+                    }
+                }
+            } else {
+                if (osBooted) {
+                    setupScreen.classList.remove('hidden', 'pointer-events-none');
+                    setTimeout(() => setupScreen.classList.remove('opacity-0'), 50);
+                }
+            }
+        });
+
         window.nexusReminders = JSON.parse(localStorage.getItem('nexus_os_reminders')) || [];
         window.saveReminders = () => {
             localStorage.setItem('nexus_os_reminders', JSON.stringify(window.nexusReminders));
@@ -345,7 +383,6 @@
 
         if (userWallpaper) document.body.style.backgroundImage = `url('${userWallpaper}')`;
 
-        // --- Global Helpers ---
         window.openApp = (appId, arg) => appManager.openApp(appId, arg);
         window.closeWindow = (id) => appManager.closeWindow(id);
         window.minimizeWindow = (id) => appManager.minimizeWindow(id);
@@ -373,7 +410,7 @@
             let glowClass = 'bg-blue-500/20';
 
             const tLower = title.toLowerCase();
-            if(tLower.includes('message') || tLower.includes('chat')) { 
+            if(tLower.includes('message') || tLower.includes('chat') || tLower.includes('direct')) { 
                 icon = 'message-square'; 
                 themeClasses = 'bg-green-500/20 border-green-500/30 text-green-400 bg-green-500'; 
                 glowClass = 'bg-green-500/20';
@@ -445,7 +482,6 @@
             });
         };
 
-        // File/Folder Creation Helpers
         window.createNewFolder = () => {
             const name = prompt("Enter new folder name:", "New Folder");
             if (name) {
@@ -465,7 +501,6 @@
             }
         };
 
-        // Global Drag and Drop Uploads
         let dragCounter = 0;
         document.addEventListener('dragenter', (e) => {
             e.preventDefault();
@@ -525,7 +560,6 @@
             }
         });
 
-        // Global Keyboard Shortcuts
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Meta') { e.preventDefault(); document.getElementById('menu-btn').click(); }
             if (e.key === 'Escape') { window.hideAllContextMenus(); document.getElementById('start-menu').classList.add('opacity-0', 'pointer-events-none'); }
@@ -1304,8 +1338,8 @@
                     
                     settingsBtn.onclick = (e) => {
                         e.stopPropagation();
-                        settingsUsername.innerText = myName;
-                        settingsAvatar.innerText = myName ? myName.charAt(0).toUpperCase() : '?';
+                        settingsUsername.innerText = chatManager.myName;
+                        settingsAvatar.innerText = chatManager.myName ? chatManager.myName.charAt(0).toUpperCase() : '?';
                         settingsMenu.classList.toggle('hidden');
                     };
 
@@ -1431,7 +1465,8 @@
                     };
                     new ResizeObserver(checkMobile).observe(root);
 
-                    if (myName) {
+                    if (chatManager.myName) {
+                        myName = chatManager.myName;
                         root.querySelector('#msg-name-input').value = myName;
                         setupView.classList.add('hidden');
                         mainView.classList.remove('hidden');
@@ -1449,6 +1484,7 @@
                             setupView.classList.add('hidden');
                             mainView.classList.remove('hidden');
                             root.querySelector('#msg-my-avatar').innerText = myName.charAt(0).toUpperCase();
+                            chatManager.init(); // re-init since we have a name now
                             renderRooms();
                         }
                     };
@@ -2033,8 +2069,13 @@
                             .then(html => {
                                 const origin = new URL(target).origin;
                                 let modified = html;
-                                if(modified.match(/<head>/i)) modified = modified.replace(/<head>/i, `<head><base href="${origin}/">`);
-                                else modified = `<base href="${origin}/">` + modified;
+                                
+                                // Inject a listener to catch link clicks and GET form submissions inside the proxy iframe
+                                const injection = `<base href="${origin}/"><script>document.addEventListener('click',function(e){const a=e.target.closest('a');if(a&&a.href&&!a.href.startsWith('javascript:')){e.preventDefault();window.parent.postMessage({type:'NEXUS_PROXY_NAV',url:a.href,tabId:'${tId}'},'*');}});document.addEventListener('submit',function(e){const f=e.target;if(f&&f.method.toLowerCase()==='get'){e.preventDefault();const u=new URL(f.action||window.location.href);u.search=new URLSearchParams(new FormData(f)).toString();window.parent.postMessage({type:'NEXUS_PROXY_NAV',url:u.toString(),tabId:'${tId}'},'*');}});\<\/script>`;
+                                
+                                if(modified.match(/<head>/i)) modified = modified.replace(/<head>/i, `<head>${injection}`);
+                                else modified = injection + modified;
+                                
                                 t.frame.srcdoc = modified;
                             })
                             .catch(err => { t.frame.srcdoc = `<html style='background:#0a0a0f'><body style='color:#ef4444;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;'><i data-lucide="alert-triangle" style="width:48px;height:48px;margin-bottom:16px;"></i>Proxy Error: ${err.message}</body></html>`; });
@@ -2044,6 +2085,22 @@
                     }
                     
                     if(activeTabId === tId) input.value = target; try { const urlObj = new URL(finalUrl); t.title = urlObj.hostname; const img = document.createElement('img'); img.src = `https://s2.googleusercontent.com/s2/favicons?domain=${urlObj.hostname}&sz=16`; img.className = 'w-3 h-3 shrink-0 tab-icon rounded-sm'; if(iconEl) iconEl.replaceWith(img); } catch { t.title = target; } titleEl.innerText = t.title; }; 
+                    
+                    const navListener = (e) => {
+                        if (e.data && e.data.type === 'NEXUS_PROXY_NAV' && tabs[e.data.tabId]) {
+                            if (activeTabId === e.data.tabId) input.value = e.data.url;
+                            load(e.data.url, e.data.tabId);
+                        }
+                    };
+                    window.addEventListener('message', navListener);
+                    
+                    windows[id] = windows[id] || {};
+                    const oldUnsub = windows[id].unsub;
+                    windows[id].unsub = () => {
+                        if (oldUnsub) oldUnsub();
+                        window.removeEventListener('message', navListener);
+                    };
+
                     newTabBtn.onclick = () => createTab('home'); root.querySelector('.browser-home').onclick = () => load('home'); root.querySelector('.browser-reload').onclick = () => load(tabs[activeTabId].url); root.querySelector('.browser-back').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.back(); } catch(e){} }; root.querySelector('.browser-forward').onclick = () => { try { tabs[activeTabId].frame.contentWindow.history.forward(); } catch(e){} }; root.querySelector('.browser-external').onclick = () => { if(tabs[activeTabId] && tabs[activeTabId].url && tabs[activeTabId].url !== 'home') window.open(tabs[activeTabId].url, '_blank'); }; input.onkeydown = (e) => { if(e.key==='Enter') load(input.value); }; createTab(startUrl || 'home'); 
                 } 
             },
@@ -2284,7 +2341,6 @@
                 }
             },
 
-            // UPDATED RUNNER: Uses Blob URLs to allow Firebase to access IndexedDB
             runner: { 
                 title: 'App Runner', icon: 'play', color: 'text-orange-400', hidden: true, 
                 render: () => `<div class="h-full bg-white flex flex-col"><div class="bg-gray-100 p-1 flex justify-between items-center border-b px-2"><span class="runner-title text-xs text-gray-500">App</span></div><iframe class="runner-frame flex-1 w-full h-full border-none bg-white" allow="camera; microphone; display-capture; geolocation; clipboard-read; clipboard-write; fullscreen"></iframe></div>`, 
@@ -2293,11 +2349,9 @@
                     const title = root.querySelector('.runner-title'); 
                     title.innerText = "Loading..."; 
                     
-                    // Reset
                     iframe.src = "about:blank";
                     iframe.removeAttribute("srcdoc");
 
-                    // Renders app via Blob to preserve origin and storage access for Firebase
                     const loadWithStorageAccess = (htmlContent) => {
                         const blob = new Blob([htmlContent], { type: 'text/html' });
                         iframe.src = URL.createObjectURL(blob);
@@ -2866,22 +2920,6 @@
             }, 1000);
         };
 
-        let setupSelectedTheme = 'dark';
-        window.selectSetupTheme = (theme) => {
-            setupSelectedTheme = theme;
-            const dbn = document.getElementById('theme-dark-btn');
-            const lbn = document.getElementById('theme-light-btn');
-            if(theme === 'dark') {
-                dbn.className = "flex-1 bg-blue-600 text-white py-2 rounded-lg border border-blue-500 transition-colors font-semibold";
-                lbn.className = "flex-1 bg-gray-800 text-gray-300 py-2 rounded-lg border border-gray-600 transition-colors font-semibold";
-                applyTheme('dark');
-            } else {
-                lbn.className = "flex-1 bg-blue-600 text-white py-2 rounded-lg border border-blue-500 transition-colors font-semibold";
-                dbn.className = "flex-1 bg-gray-800 text-gray-300 py-2 rounded-lg border border-gray-600 transition-colors font-semibold";
-                applyTheme('light');
-            }
-        };
-
         function updateUIAfterLogin() {
             if (userData) {
                 const startMenuUser = document.getElementById('menu-user');
@@ -2891,8 +2929,6 @@
                 if (userData.photo) {
                     const imgHtml = `<img src="${userData.photo}" class="w-full h-full object-cover rounded-full">`;
                     if (startMenuAvatar) startMenuAvatar.innerHTML = imgHtml;
-                    const loginAvatar = document.getElementById('login-avatar');
-                    if (loginAvatar) loginAvatar.innerHTML = imgHtml;
                 } else if (startMenuAvatar) {
                     startMenuAvatar.innerText = userData.username.charAt(0).toUpperCase();
                 }
@@ -2908,81 +2944,36 @@
             }
         }
 
-        window.finishSetup = () => {
-            const user = document.getElementById('setup-user').value.trim();
-            const pass = document.getElementById('setup-pass').value.trim();
-            const msg = document.getElementById('setup-msg');
-
-            if(!user) { msg.innerText = "Username is required!"; return; }
-
-            userData = { username: user, password: pass, theme: setupSelectedTheme, photo: null };
-            localStorage.setItem('gemini_os_user_data', JSON.stringify(userData));
-
-            document.getElementById('setup-screen').classList.add('opacity-0', 'pointer-events-none');
-            setTimeout(() => {
-                const setupEl = document.getElementById('setup-screen');
-                if(setupEl) setupEl.remove();
-                updateUIAfterLogin();
-                window.notify("Setup Complete", `Welcome to Nexus OS, ${user}!`);
-                window.updatesChecked = true;
-                checkForUpdates();
-            }, 500);
-        };
-
-        // Login
         window.lockSystem = () => {
             const startMenu = document.getElementById('start-menu');
             if (startMenu) startMenu.classList.add('opacity-0', 'pointer-events-none');
-            const loginEl = document.getElementById('login-screen');
-            if (loginEl) {
-                document.getElementById('login-pass').value = '';
-                document.getElementById('login-msg').innerText = '';
-                loginEl.classList.remove('hidden');
-                setTimeout(() => {
-                    loginEl.classList.remove('opacity-0', 'pointer-events-none');
-                }, 50);
-            }
+            signOut(auth); // Triggers onAuthStateChanged to show login
         };
-
-        window.attemptLogin = () => {
-            const pass = document.getElementById('login-pass').value;
-            if(userData && userData.password && pass !== userData.password) {
-                document.getElementById('login-msg').innerText = "Incorrect password!";
-                return;
-            }
-            document.getElementById('login-screen').classList.add('opacity-0', 'pointer-events-none');
-            setTimeout(() => { 
-                const loginEl = document.getElementById('login-screen');
-                if(loginEl) loginEl.classList.add('hidden'); // Hiding instead of removing to reuse it
-                updateUIAfterLogin();
-                window.notify("Welcome Back", "Logged in successfully."); 
-                
-                if (!window.updatesChecked) {
-                    checkForUpdates(); 
-                    window.updatesChecked = true;
-                }
-            }, 500);
-        };
-        document.getElementById('login-pass').addEventListener('keydown', (e) => { if(e.key === 'Enter') attemptLogin(); });
 
         const bootText = document.getElementById('boot-text');
-        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.13...", "[ OK ] Mounting Filesystem...", "Starting Desktop..."];
+        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.13...", "[ OK ] Mounting Filesystem...", "[ OK ] Initializing Secure Auth Engine...", "Starting Desktop..."];
         let bi = 0;
         function runBoot() {
-            if(bi < bootLines.length) { const d = document.createElement('div'); d.innerHTML = bootLines[bi].includes("OK") ? `<span class="text-green-500 font-bold">[ OK ]</span> ${bootLines[bi].replace("[ OK ] ", "")}` : bootLines[bi]; bootText.appendChild(d); bi++; setTimeout(runBoot, 150); } 
+            if(bi < bootLines.length) { 
+                const d = document.createElement('div'); 
+                d.innerHTML = bootLines[bi].includes("OK") ? `<span class="text-green-500 font-bold">[ OK ]</span> ${bootLines[bi].replace("[ OK ] ", "")}` : bootLines[bi]; 
+                bootText.appendChild(d); 
+                bi++; 
+                setTimeout(runBoot, 150); 
+            } 
             else { 
                 setTimeout(() => { 
                     const bs = document.getElementById('boot-screen');
                     if(bs) bs.remove(); 
-                    if (userData) {
-                        document.getElementById('login-screen').classList.remove('hidden'); 
-                        document.getElementById('login-user-display').innerText = userData.username;
-                        document.getElementById('login-avatar').innerText = userData.username.charAt(0).toUpperCase();
-                        document.getElementById('version-display').innerText = `GeminiOS v${installedVersion}`;
-                        setTimeout(() => document.getElementById('login-screen').classList.remove('opacity-0'), 50);
-                    } else {
-                        document.getElementById('setup-screen').classList.remove('hidden');
-                        setTimeout(() => document.getElementById('setup-screen').classList.remove('opacity-0'), 50);
+                    
+                    osBooted = true;
+                    const setupScreen = document.getElementById('setup-screen');
+                    
+                    if (!auth.currentUser) {
+                        setupScreen.classList.remove('hidden', 'pointer-events-none');
+                        setTimeout(() => setupScreen.classList.remove('opacity-0'), 50);
+                    } else if (allowedEmails.includes(auth.currentUser.email)) {
+                        updateUIAfterLogin();
                     }
                 }, 500); 
             }
@@ -3038,4 +3029,7 @@
                 if (remindersChanged) window.saveReminders();
 
             }, 1000);
-
+        };
+    </script>
+</body>
+</html>
