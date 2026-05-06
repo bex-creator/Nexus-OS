@@ -195,7 +195,7 @@
         <div class="w-64 h-1 bg-gray-800 rounded mt-4 overflow-hidden"><div id="update-bar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div></div>
     </div>
 
-    <!-- Firebase Auth Screen (Replaces old Setup & Login Screens) -->
+    <!-- Firebase Auth Screen -->
     <div id="setup-screen" class="absolute inset-0 bg-black/80 backdrop-blur-xl flex flex-col justify-center items-center text-white hidden opacity-0 transition-opacity duration-500 z-[9999]">
         <div class="bg-gray-900/90 border border-gray-700 p-8 rounded-2xl shadow-2xl w-96 flex flex-col items-center relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
@@ -1046,7 +1046,6 @@
                 "Welcome": { type: 'link', action: "openApp('welcome')", icon: 'info', color: 'text-purple-400' },
                 "File Explorer": { type: 'link', action: "openApp('explorer')", icon: 'folder', color: 'text-yellow-500' },
                 "Nexus Store": { type: 'link', action: "openApp('community')", icon: 'shopping-bag', color: 'text-green-400', img: svgStore },
-                "Utility Store": { type: 'link', action: "openApp('utilityStore')", icon: 'wrench', color: 'text-gray-300' },
                 "System Monitor": { type: 'link', action: "openApp('taskmgr')", icon: 'activity', color: 'text-green-500' },
                 "Paint": { type: 'link', action: "openApp('paint')", icon: 'brush', color: 'text-pink-400' },
                 "Calculator": { type: 'link', action: "openApp('calculator')", icon: 'calculator', color: 'text-gray-200' },
@@ -1089,8 +1088,10 @@
             if (!deskNode.children["Reminders"]) {
                 deskNode.children["Reminders"] = { type: 'link', action: "openApp('reminders')", icon: 'bell', color: 'text-yellow-400' };
             }
-            if (!deskNode.children["Utility Store"]) {
-                deskNode.children["Utility Store"] = { type: 'link', action: "openApp('utilityStore')", icon: 'wrench', color: 'text-gray-300' };
+            
+            // Delete Utility Store if it exists from older sessions
+            if (deskNode.children["Utility Store"]) {
+                delete deskNode.children["Utility Store"];
             }
             
             // Clean old chat apps and add the new Global Chat app
@@ -2019,7 +2020,7 @@
                 init: (id, root, startUrl) => { 
                     const tabBar = root.querySelector('.tab-bar-container'); const contentContainer = root.querySelector('.tab-content-container'); const input = root.querySelector('.browser-url'); const newTabBtn = root.querySelector('.new-tab-btn'); const proxyBtn = root.querySelector('.proxy-toggle'); let proxyEnabled = false; let tabs = {}; let activeTabId = null; let tabCounter = 0; 
                     
-                    proxyBtn.onclick = () => { proxyEnabled = !proxyEnabled; if(proxyEnabled) { proxyBtn.innerHTML = '<i data-lucide="shield-check" class="w-4 h-4 text-green-400"></i>'; proxyBtn.title = "Nexus Proxy: ON (Bypassing blocks)"; proxyBtn.classList.remove('text-red-400', 'hover:bg-red-500/20'); proxyBtn.classList.add('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); window.notify("Proxy Enabled", "Advanced routing active."); } else { proxyBtn.innerHTML = '<i data-lucide="shield-off" class="w-4 h-4 text-red-400"></i>'; proxyBtn.title = "Nexus Proxy: OFF (Click to bypass blocks)"; proxyBtn.classList.remove('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); proxyBtn.classList.add('text-red-400', 'hover:bg-red-500/20'); window.notify("Proxy Disabled", "Direct connection active."); } lucide.createIcons({root: proxyBtn}); if(tabs[activeTabId] && tabs[activeTabId].url !== 'home') load(tabs[activeTabId].url); };
+                    proxyBtn.onclick = () => { proxyEnabled = !proxyEnabled; if(proxyEnabled) { proxyBtn.innerHTML = '<i data-lucide="shield-check" class="w-4 h-4 text-green-400"></i>'; proxyBtn.title = "Nexus Proxy: ON (CORS Bypass Engine)"; proxyBtn.classList.remove('text-red-400', 'hover:bg-red-500/20'); proxyBtn.classList.add('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); window.notify("Proxy Enabled", "CORS Bypass Engine active."); } else { proxyBtn.innerHTML = '<i data-lucide="shield-off" class="w-4 h-4 text-red-400"></i>'; proxyBtn.title = "Nexus Proxy: OFF (Click to bypass blocks)"; proxyBtn.classList.remove('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); proxyBtn.classList.add('text-red-400', 'hover:bg-red-500/20'); window.notify("Proxy Disabled", "Direct connection active."); } lucide.createIcons({root: proxyBtn}); if(tabs[activeTabId] && tabs[activeTabId].url !== 'home') load(tabs[activeTabId].url); };
 
                     const createTab = (url = 'home') => { const tId = 'tab-' + (++tabCounter); const tabBtn = document.createElement('div'); tabBtn.className = 'chrome-tab group flex items-center justify-between gap-2 px-3 py-1.5 text-cyan-700 hover:bg-cyan-900/30 rounded-t-md min-w-[140px] max-w-[220px] cursor-pointer border-t border-l border-r border-transparent relative shrink-0 transition-all mt-1'; tabBtn.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i data-lucide="zap" class="w-3 h-3 shrink-0 tab-icon"></i><span class="truncate text-xs tab-title">New Tab</span></div><button class="close-tab hover:bg-cyan-500/30 hover:text-cyan-200 text-cyan-600 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all shrink-0"><i data-lucide="x" class="w-3 h-3"></i></button>`; tabBar.insertBefore(tabBtn, newTabBtn); const contentDiv = document.createElement('div'); contentDiv.className = 'absolute inset-0 w-full h-full hidden bg-white'; const frame = document.createElement('iframe'); frame.className = 'w-full h-full border-none hidden bg-white'; frame.sandbox = 'allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts'; const mock = document.createElement('div'); mock.className = 'absolute inset-0 bg-[#0a0a0f] overflow-y-auto hidden'; contentDiv.appendChild(frame); contentDiv.appendChild(mock); contentContainer.appendChild(contentDiv); tabs[tId] = { btn: tabBtn, content: contentDiv, frame, mock, url: '', title: 'New Tab' }; tabBtn.onmousedown = (e) => { if(!e.target.closest('.close-tab')) switchTab(tId); }; tabBtn.querySelector('.close-tab').onmousedown = (e) => { e.stopPropagation(); closeTab(tId); }; lucide.createIcons({root: tabBtn}); switchTab(tId); load(url, tId); }; 
                     const switchTab = (tId) => { if(!tabs[tId]) return; activeTabId = tId; Object.keys(tabs).forEach(id => { const t = tabs[id]; if(id === tId) { t.btn.classList.add('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.remove('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.remove('hidden'); input.value = (t.url === 'home') ? '' : t.url; } else { t.btn.classList.remove('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.add('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.add('hidden'); } }); }; 
@@ -2043,10 +2044,25 @@
                         finalUrl = target.replace(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)/i, 'https://piped.video');
                         t.frame.removeAttribute('srcdoc');
                         t.frame.src = finalUrl;
-                    } else if(proxyEnabled && !target.startsWith('file://') && !target.includes('google.com')) { 
-                        t.frame.removeAttribute('srcdoc');
-                        // Use Via (Hypothesis) Reverse Proxy for robust dynamic website rendering
-                        t.frame.src = 'https://via.hypothes.is/' + finalUrl;
+                    } else if(proxyEnabled && !target.startsWith('file://')) { 
+                        t.frame.removeAttribute('src');
+                        t.frame.srcdoc = "<div style='color:white;font-family:sans-serif;padding:2rem;text-align:center;'>Loading proxy...</div>";
+                        fetch('https://corsproxy.io/?' + encodeURIComponent(finalUrl))
+                            .then(r => r.text())
+                            .then(html => {
+                                const urlObj = new URL(finalUrl);
+                                const baseTag = `<base href="${urlObj.origin}/">`;
+                                let modifiedHtml = html;
+                                if(modifiedHtml.toLowerCase().includes('<head>')) {
+                                    modifiedHtml = modifiedHtml.replace(/<head>/i, '<head>' + baseTag);
+                                } else {
+                                    modifiedHtml = '<head>' + baseTag + '</head>' + modifiedHtml;
+                                }
+                                t.frame.srcdoc = modifiedHtml;
+                            })
+                            .catch(e => {
+                                t.frame.srcdoc = "<div style='color:red;padding:2rem;'>Proxy Error: " + e.message + "</div>";
+                            });
                     } else {
                         t.frame.removeAttribute('srcdoc');
                         t.frame.src = finalUrl; 
@@ -2213,84 +2229,6 @@
                         const f = fs.getPath(arg);
                         if(f && f.content) img.src = f.content;
                     }
-                }
-            },
-
-            utilityStore: {
-                title: 'Utility Store', icon: 'wrench', color: 'text-gray-300', width: '800px', height: '500px',
-                render: () => `<div class="h-full bg-gray-900 flex flex-col text-white relative">
-                    <div class="p-6 border-b border-gray-800 bg-gray-900/95 backdrop-blur z-10 sticky top-0 flex justify-between items-center">
-                        <div>
-                            <h1 class="text-2xl font-bold flex items-center gap-3"><i data-lucide="wrench" class="text-gray-300"></i> Utility Store</h1>
-                            <p class="text-gray-400 text-sm mt-1">Install offline productivity tools.</p>
-                        </div>
-                        <input type="text" id="util-search" placeholder="Search utilities..." class="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500 w-64 shadow-inner">
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gray-950">
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="util-grid"></div>
-                    </div>
-                </div>`,
-                init: (id, root) => {
-                    const grid = root.querySelector('#util-grid');
-                    const search = root.querySelector('#util-search');
-                    
-                    const utils = [
-                        { id: 'todo', name: 'Task Board', author: 'NexusOS', desc: 'A simple kanban-style task manager.', icon: 'check-square', content: '<!DOCTYPE html><html><head><script src="https://cdn.tailwindcss.com"><\/script></head><body class="bg-gray-100 p-8 h-screen font-sans"><h1 class="text-2xl font-bold mb-4 text-gray-800">Tasks</h1><div class="flex gap-2 mb-4"><input type="text" id="t-inp" class="border border-gray-300 p-2 rounded flex-1 focus:outline-none focus:border-blue-500 shadow-sm" placeholder="What needs to be done?"><button onclick="add()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded font-bold shadow transition-colors">Add</button></div><ul id="t-list" class="space-y-2"></ul><script>const l=document.getElementById("t-list"),i=document.getElementById("t-inp");let t=JSON.parse(localStorage.getItem("nx_tasks")||"[]");function r(){l.innerHTML="";t.forEach((x,j)=>{l.innerHTML+=`<li class="bg-white p-3 rounded shadow-sm border border-gray-200 flex justify-between items-center"><span class="text-gray-700">\${x}</span><button onclick="d(\${j})" class="text-red-500 hover:text-red-700 font-bold p-1">&times;</button></li>`});localStorage.setItem("nx_tasks",JSON.stringify(t))}function add(){if(i.value.trim()){t.push(i.value.trim());i.value="";r()}}function d(j){t.splice(j,1);r()}i.addEventListener("keydown",e=>{if(e.key==="Enter")add()});r()<\/script></body></html>' },
-                        { id: 'stopwatch', name: 'Stopwatch', author: 'NexusOS', desc: 'A minimal stopwatch and precision timer.', icon: 'timer', content: '<!DOCTYPE html><html><head><script src="https://cdn.tailwindcss.com"><\/script></head><body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen font-mono select-none"><div id="time" class="text-6xl font-bold mb-8 tracking-wider">00:00:00.00</div><div class="flex gap-4"><button onclick="start()" class="bg-green-600 hover:bg-green-500 px-6 py-2 rounded font-bold transition-colors shadow-lg">Start</button><button onclick="stop()" class="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded font-bold transition-colors shadow-lg">Stop</button><button onclick="reset()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded font-bold transition-colors shadow-lg">Reset</button></div><script>let t=0,i=null;const el=document.getElementById("time");function f(ms){let d=new Date(ms);return d.toISOString().substr(11,8)+"."+(ms%1000/10).toFixed(0).padStart(2,"0")}function update(){t+=10;el.innerText=f(t);}function start(){if(!i)i=setInterval(update,10);}function stop(){clearInterval(i);i=null;}function reset(){stop();t=0;el.innerText="00:00:00.00";}<\/script></body></html>' },
-                        { id: 'notes', name: 'Markdown Notes', author: 'NexusOS', desc: 'A distraction-free notes application.', icon: 'file-text', content: '<!DOCTYPE html><html><head><script src="https://cdn.tailwindcss.com"><\/script></head><body class="bg-gray-50 p-8 h-screen flex flex-col"><h1 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">Notes</h1><textarea class="flex-1 w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none text-gray-700 text-lg leading-relaxed" placeholder="Start typing here..." id="note-area"></textarea><script>const ta = document.getElementById("note-area"); ta.value = localStorage.getItem("nexus_quick_notes") || ""; ta.addEventListener("input", () => localStorage.setItem("nexus_quick_notes", ta.value));<\/script></body></html>' },
-                        { id: 'passgen', name: 'Password Gen', author: 'NexusOS', desc: 'Secure random password generator.', icon: 'key', content: '<!DOCTYPE html><html><head><script src="https://cdn.tailwindcss.com"><\/script></head><body class="bg-gray-900 text-white p-8 h-screen font-sans flex flex-col items-center justify-center"><h1 class="text-2xl font-bold mb-6">Password Generator</h1><div class="bg-gray-800 p-6 rounded-xl shadow-lg w-full max-w-md"><div class="flex items-center gap-2 mb-4"><input type="text" id="pwd" class="flex-1 bg-gray-900 border border-gray-700 p-3 rounded text-lg font-mono text-green-400" readonly><button onclick="copy()" class="bg-blue-600 hover:bg-blue-500 p-3 rounded transition"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><div class="mb-4"><label class="flex justify-between text-sm text-gray-400 mb-1"><span>Length</span><span id="len-val">16</span></label><input type="range" id="len" min="8" max="64" value="16" class="w-full accent-blue-500" oninput="document.getElementById(\'len-val\').innerText=this.value; gen()"></div><button onclick="gen()" class="w-full bg-green-600 hover:bg-green-500 py-3 rounded font-bold transition">Generate New</button></div><script>function gen(){const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";let p="";const l=document.getElementById(\'len\').value;for(let i=0;i<l;i++) p+=chars.charAt(Math.floor(Math.random()*chars.length));document.getElementById(\'pwd\').value=p;}function copy(){ navigator.clipboard.writeText(document.getElementById(\'pwd\').value); alert("Copied!"); } gen();<\/script></body></html>' },
-                        { id: 'devinfo', name: 'Device Info', author: 'NexusOS', desc: 'Detailed browser and system telemetry.', icon: 'cpu', content: '<!DOCTYPE html><html><head><script src="https://cdn.tailwindcss.com"><\/script></head><body class="bg-gray-100 p-8 h-screen font-sans"><h1 class="text-2xl font-bold mb-6 text-gray-800">Device Info</h1><div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden"><table class="w-full text-left text-sm"><tbody id="info-table" class="divide-y divide-gray-200"></tbody></table></div><script>const d={"User Agent":navigator.userAgent,"Platform":navigator.platform,"Language":navigator.language,"Screen Resolution":\`\${window.screen.width} x \${window.screen.height}\`,"Window Size":\`\${window.innerWidth} x \${window.innerHeight}\`,"Color Depth":\`\${window.screen.colorDepth}-bit\`,"Logical Processors":navigator.hardwareConcurrency||"Unknown","Device Memory":navigator.deviceMemory?navigator.deviceMemory+" GB":"Unknown","Online":navigator.onLine?"Yes":"No","Cookies Enabled":navigator.cookieEnabled?"Yes":"No"};const t=document.getElementById("info-table");for(let k in d)t.innerHTML+=\`<tr class="hover:bg-gray-50"><td class="px-4 py-3 font-semibold text-gray-700 w-1/3">\${k}</td><td class="px-4 py-3 text-gray-600 break-all">\${d[k]}</td></tr>\`;<\/script></body></html>' },
-                        { id: 'jsonfmt', name: 'JSON Formatter', author: 'NexusOS', desc: 'Format and validate JSON data.', icon: 'code', content: '<!DOCTYPE html><html><head><script src="https://cdn.tailwindcss.com"><\/script></head><body class="bg-gray-900 p-6 h-screen font-sans flex flex-col gap-4"><h1 class="text-xl font-bold text-white flex justify-between items-center">JSON Formatter <button onclick="fmt()" class="bg-blue-600 hover:bg-blue-500 px-4 py-1 rounded text-sm transition">Format</button></h1><textarea id="inp" class="flex-1 w-full bg-gray-800 text-green-400 p-4 rounded-lg outline-none font-mono text-sm border border-gray-700 focus:border-blue-500 resize-none" placeholder="Paste raw JSON here..."></textarea><script>function fmt(){const el=document.getElementById(\'inp\');try{const obj=JSON.parse(el.value);el.value=JSON.stringify(obj,null,4);el.classList.remove(\'border-red-500\');}catch(e){el.classList.add(\'border-red-500\');alert("Invalid JSON: "+e.message);}}<\/script></body></html>' }
-                    ];
-
-                    const renderGrid = (filter = "") => {
-                        grid.innerHTML = '';
-                        const filtered = utils.filter(a => a.name.toLowerCase().includes(filter.toLowerCase()) || a.desc.toLowerCase().includes(filter.toLowerCase()));
-                        
-                        if (filtered.length === 0) {
-                            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-8">No utilities matched your search.</div>`;
-                        } else {
-                            filtered.forEach(app => {
-                                const isInstalled = !!fs.getPath('/home/user/apps/' + app.name + '.html');
-                                const card = document.createElement('div');
-                                card.className = "bg-gray-800 border border-gray-700 p-5 rounded-2xl flex flex-col gap-4 hover:border-blue-500/50 transition-colors shadow-lg";
-                                card.innerHTML = `
-                                    <div class="flex gap-4 items-start">
-                                        <div class="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center shrink-0 shadow-inner border border-gray-700">
-                                            <i data-lucide="${app.icon}" class="w-7 h-7 text-blue-400"></i>
-                                        </div>
-                                        <div class="flex-1 overflow-hidden">
-                                            <h3 class="font-bold text-lg text-white truncate">${app.name}</h3>
-                                            <p class="text-xs text-blue-400 truncate font-medium">by ${app.author}</p>
-                                        </div>
-                                    </div>
-                                    <p class="text-sm text-gray-400 line-clamp-2 h-10 leading-relaxed">${app.desc}</p>
-                                    <div class="mt-auto pt-4 border-t border-gray-700 flex justify-between items-center">
-                                        <button class="install-btn px-4 py-2 ${isInstalled ? 'bg-gray-700 text-gray-400 cursor-default' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30'} rounded-lg font-bold text-sm transition-all w-full flex justify-center items-center gap-2">
-                                            ${isInstalled ? '<i data-lucide="check" class="w-4 h-4"></i> Installed' : '<i data-lucide="download" class="w-4 h-4"></i> Install'}
-                                        </button>
-                                    </div>
-                                `;
-                                
-                                if (!isInstalled) {
-                                    card.querySelector('.install-btn').onclick = () => {
-                                        const path = `/home/user/apps/${app.name}.html`;
-                                        if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
-                                        fs.createPath(path, 'file', app.content);
-                                        fs.getPath('/home/user/Desktop').children[app.name] = { type: 'link', action: `openApp('runner', '${path}')`, icon: app.icon, color: 'text-blue-400' };
-                                        renderDesktop();
-                                        window.notify("Utility Store", `${app.name} installed successfully!`);
-                                        renderGrid(search.value);
-                                    };
-                                }
-                                grid.appendChild(card);
-                            });
-                        }
-                        lucide.createIcons({root: grid});
-                    };
-
-                    renderGrid();
-                    search.oninput = (e) => renderGrid(e.target.value);
                 }
             },
 
