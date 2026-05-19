@@ -195,19 +195,40 @@
         <div class="w-64 h-1 bg-gray-800 rounded mt-4 overflow-hidden"><div id="update-bar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div></div>
     </div>
 
-    <!-- Firebase Auth Screen (Replaces old Setup & Login Screens) -->
+    <!-- Firebase Auth Screen -->
     <div id="setup-screen" class="absolute inset-0 bg-black/80 backdrop-blur-xl flex flex-col justify-center items-center text-white hidden opacity-0 transition-opacity duration-500 z-[9999]">
         <div class="bg-gray-900/90 border border-gray-700 p-8 rounded-2xl shadow-2xl w-96 flex flex-col items-center relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
             <div class="w-16 h-16 bg-black border border-gray-700 rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
                 <i data-lucide="shield-alert" class="w-8 h-8 text-blue-500"></i>
             </div>
+            
             <h1 class="text-2xl font-bold mb-2 tracking-tight">Restricted System</h1>
-            <p class="text-gray-400 text-sm mb-8 text-center px-4">Nexus OS is locked. Authorized personnel only.</p>
+            <p class="text-gray-400 text-sm mb-6 text-center px-4">Nexus OS is locked. Authorized personnel only.</p>
 
-            <button onclick="window.handleGoogleLogin()" class="w-full bg-white hover:bg-gray-200 text-black font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5"> Sign in with Google
-            </button>
+            <div class="w-full flex flex-col gap-3">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="mail" class="w-5 h-5 text-gray-500"></i>
+                    </div>
+                    <input type="email" id="auth-email" placeholder="Email address" class="w-full bg-black/50 border border-gray-700 text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-500">
+                </div>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="lock" class="w-5 h-5 text-gray-500"></i>
+                    </div>
+                    <input type="password" id="auth-password" placeholder="Password" class="w-full bg-black/50 border border-gray-700 text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-500">
+                </div>
+                
+                <div class="flex gap-2 mt-2">
+                    <button onclick="window.handleEmailLogin()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 flex justify-center items-center gap-2">
+                        Sign In
+                    </button>
+                    <button onclick="window.handleEmailRegister()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 flex justify-center items-center gap-2">
+                        Register
+                    </button>
+                </div>
+            </div>
             
             <div id="login-error-msg" class="w-full mt-6 p-4 bg-red-900/30 border border-red-900/50 rounded-lg text-red-400 text-sm text-center hidden"></div>
         </div>
@@ -292,7 +313,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -322,7 +343,6 @@
         };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
         
         // Strict Ban List
         const allowedEmails = [
@@ -335,13 +355,42 @@
         ];
         let osBooted = false;
 
-        window.handleGoogleLogin = async () => {
+        window.handleEmailLogin = async () => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
             const errorMsg = document.getElementById('login-error-msg');
             errorMsg.classList.add('hidden');
+            
+            if(!email || !password) {
+                errorMsg.innerHTML = "Please enter both email and password.";
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+
             try {
-                await signInWithPopup(auth, provider);
+                await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                errorMsg.innerHTML = `<span class="block font-bold">Authentication Failed</span>${error.message}`;
+                errorMsg.innerHTML = `<span class="block font-bold">Login Failed</span>${error.message}`;
+                errorMsg.classList.remove('hidden');
+            }
+        };
+
+        window.handleEmailRegister = async () => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errorMsg = document.getElementById('login-error-msg');
+            errorMsg.classList.add('hidden');
+            
+            if(!email || !password) {
+                errorMsg.innerHTML = "Please enter both email and password.";
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                errorMsg.innerHTML = `<span class="block font-bold">Registration Failed</span>${error.message}`;
                 errorMsg.classList.remove('hidden');
             }
         };
