@@ -322,9 +322,9 @@
         }
 
         const TARGET_VERSION = "4.20"; 
-        let installedVersion = localStorage.getItem('gemini_os_version') || "3.0";
-        let userWallpaper = localStorage.getItem('gemini_os_wallpaper') || null;
-        let userData = JSON.parse(localStorage.getItem('gemini_os_user_data'));
+        let installedVersion = localStorage.getItem('nexus_core_version') || "3.0";
+        let userWallpaper = localStorage.getItem('nexus_core_wallpaper') || null;
+        let userData = JSON.parse(localStorage.getItem('nexus_core_user_data'));
         let currentWorkspace = 1;
         
         let db = null; 
@@ -400,7 +400,7 @@
             if (user) {
                 if (allowedEmails.includes(user.email)) {
                     userData = { username: user.displayName || user.email.split('@')[0], email: user.email, photo: user.photoURL, theme: 'dark' };
-                    localStorage.setItem('gemini_os_user_data', JSON.stringify(userData));
+                    localStorage.setItem('nexus_core_user_data', JSON.stringify(userData));
                     
                     setupScreen.classList.add('opacity-0', 'pointer-events-none');
                     setTimeout(() => setupScreen.classList.add('hidden'), 500);
@@ -453,7 +453,7 @@
         window.hideContextMenu = window.hideAllContextMenus;
         
         window.applyTheme = (t) => systemState.applyTheme(t);
-        window.setWallpaper = (url) => { document.body.style.backgroundImage = `url('${url}')`; localStorage.setItem('gemini_os_wallpaper', url); window.notify("Settings", "Wallpaper updated."); };
+        window.setWallpaper = (url) => { document.body.style.backgroundImage = `url('${url}')`; localStorage.setItem('nexus_core_wallpaper', url); window.notify("Settings", "Wallpaper updated."); };
         window.notify = (title, msg, duration = 4000) => {
             const area = document.getElementById('notification-area');
             const el = document.createElement('div');
@@ -643,7 +643,7 @@
                 document.getElementById('qs-theme-toggle').classList.replace('bg-gray-400', 'bg-blue-600');
                 document.getElementById('qs-theme-icon').setAttribute('data-lucide', 'moon');
             }
-            if (userData) { userData.theme = isDark ? 'light' : 'dark'; localStorage.setItem('gemini_os_user_data', JSON.stringify(userData)); }
+            if (userData) { userData.theme = isDark ? 'light' : 'dark'; localStorage.setItem('nexus_core_user_data', JSON.stringify(userData)); }
             lucide.createIcons();
         };
 
@@ -2917,7 +2917,7 @@
             const steps = [{ msg: "Downloading...", progress: 30 }, { msg: "Installing...", progress: 70 }, { msg: "Finalizing...", progress: 100 }];
             let step = 0;
             const interval = setInterval(() => {
-                if (step >= steps.length) { clearInterval(interval); localStorage.setItem('gemini_os_version', TARGET_VERSION); setTimeout(() => location.reload(), 1000); } 
+                if (step >= steps.length) { clearInterval(interval); localStorage.setItem('nexus_core_version', TARGET_VERSION); setTimeout(() => location.reload(), 1000); } 
                 else { updateText.innerText = steps[step].msg; updateBar.style.width = steps[step].progress + "%"; step++; }
             }, 1000);
         };
@@ -2953,7 +2953,7 @@
         };
 
         const bootText = document.getElementById('boot-text');
-        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Gemini v4.13...", "[ OK ] Mounting Filesystem...", "[ OK ] Initializing Secure Auth Engine...", "Starting Desktop..."];
+        const bootLines = ["[ OK ] Kernel init...", "[ OK ] CPU: Nexus Core v4.20...", "[ OK ] Mounting Filesystem...", "[ OK ] Initializing Secure Auth Engine...", "Starting Desktop..."];
         let bi = 0;
         function runBoot() {
             if(bi < bootLines.length) { 
