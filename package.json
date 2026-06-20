@@ -5,7 +5,7 @@
   "main": "main.js",
   "author": "Nexus Developer",
   "scripts": {
-    "build": "electron-builder --win"
+    "build": "electron-builder --win --publish never"
   },
   "devDependencies": {
     "electron": "^29.0.0",
