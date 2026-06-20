@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Nexus OS Desktop App",
   "main": "main.js",
+  "author": "Nexus Developer",
   "scripts": {
     "build": "electron-builder --win"
   },
