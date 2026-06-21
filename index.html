@@ -1244,7 +1244,7 @@
                             <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 shadow-md shadow-purple-500/20"><i data-lucide="sparkles" class="w-4 h-4 text-white"></i></div>
                             <div class="flex flex-col flex-1 min-w-0">
                                 <span class="font-bold text-lg leading-tight">Nexus Assistant</span>
-                                <span id="ai-status" class="text-xs text-yellow-400 truncate">Status: Waiting to initialize WebGPU...</span>
+                                <span id="ai-status" class="text-xs text-yellow-400 truncate">Status: Waiting to initialize engine...</span>
                             </div>
                             <button id="ai-reset" class="p-2 hover:bg-gray-700 rounded transition-colors text-gray-400 hover:text-white" title="Reset Chat & Engine"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
                         </div>
@@ -1252,14 +1252,14 @@
                             <div class="flex gap-3">
                                 <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0"><i data-lucide="bot" class="w-4 h-4 text-white"></i></div>
                                 <div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-200 shadow-md">
-                                    Hello! I am your embedded Nexus OS AI, powered by WebGPU and the Llama 3.2 model. I run 100% locally in your browser!
-                                    <br><br><b>I can now observe and control your OS!</b> Try asking me to "Open the calculator", "Change the wallpaper to a cityscape", or "Switch to light theme".
-                                    <br><br><span class="text-xs text-gray-400">Note: The first time you use me, the model will download (~1GB). If it gets stuck, ensure WebGPU is supported and enabled in your browser.</span>
+                                    Hello! I am your embedded Nexus OS AI.
+                                    <br><br><b>I can observe and control your OS!</b> Try asking me to "Open the calculator", "Change the wallpaper to a cityscape", or "Switch to light theme".
+                                    <br><br><span class="text-xs text-gray-400">Note: I will try to run 100% locally via WebGPU. If your device/network blocks WebGPU, I will automatically fallback to a free cloud proxy so I never break!</span>
                                 </div>
                             </div>
                         </div>
                         <div class="p-3 bg-gray-800 border-t border-gray-700 flex gap-2 shrink-0 items-end">
-                            <textarea id="ai-input" disabled class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-purple-500 resize-none h-11 custom-scrollbar disabled:opacity-50" placeholder="Please wait for model to load..."></textarea>
+                            <textarea id="ai-input" disabled class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-purple-500 resize-none h-11 custom-scrollbar disabled:opacity-50" placeholder="Please wait for engine to load..."></textarea>
                             <button id="ai-send" disabled class="bg-purple-600 hover:bg-purple-500 h-11 px-4 rounded-lg transition-colors font-bold shadow-md disabled:opacity-50"><i data-lucide="send" class="w-4 h-4"></i></button>
                         </div>
                     </div>
@@ -1272,9 +1272,9 @@
                     const resetBtn = root.querySelector('#ai-reset');
 
                     let engine = null;
+                    let useCloudFallback = false;
                     
-                    const systemPrompt = `You are Nexus AI, an advanced local assistant embedded directly within Nexus OS.
-You run 100% locally in the browser via WebGPU.
+                    const systemPrompt = `You are Nexus AI, an advanced assistant embedded directly within Nexus OS.
 
 You can observe the OS state and control the OS by outputting special command tags in your response.
 To perform an action, you MUST output a tag exactly like this on a new line:
@@ -1299,14 +1299,13 @@ Keep your conversational responses concise. Do not explain the tags to the user.
 
                     const initEngine = async () => {
                         try {
-                            statusText.innerText = "Loading WebLLM Engine...";
+                            statusText.innerText = "Initializing Local WebGPU Engine...";
                             statusText.className = "text-xs text-blue-400 truncate";
                             input.disabled = true;
                             sendBtn.disabled = true;
                             
                             const webllm = await import("https://esm.run/@mlc.ai/web-llm");
                             
-                            // Using a smaller, highly optimized 1B model that works better on most GPUs
                             engine = await webllm.CreateMLCEngine(
                                 "Llama-3.2-1B-Instruct-q4f16_1-MLC",
                                 {
@@ -1316,23 +1315,20 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                                 }
                             );
                             
-                            statusText.innerText = "Ready. Connected to OS locally.";
+                            statusText.innerText = "Ready. Connected to OS locally (WebGPU).";
                             statusText.className = "text-xs text-green-400 truncate";
-                            input.disabled = false;
-                            sendBtn.disabled = false;
-                            input.placeholder = "Ask me to do something...";
-                            input.focus();
                         } catch (err) {
-                            console.error("WebLLM Error:", err);
-                            statusText.innerText = "WebGPU Error (Enable chrome://flags/#enable-unsafe-webgpu)";
-                            statusText.className = "text-xs text-red-400 truncate cursor-help";
-                            statusText.title = err.message;
-                            
-                            // Re-enable to let them try again after error
-                            input.disabled = false;
-                            sendBtn.disabled = false;
-                            input.placeholder = "Engine failed. Check console or WebGPU support.";
+                            console.warn("WebGPU Local AI Failed, triggering fallback:", err);
+                            // If WebGPU is blocked (e.g. Chromebooks), silently fallback to a free cloud proxy
+                            useCloudFallback = true;
+                            statusText.innerText = "WebGPU blocked. Using Cloud Fallback Engine.";
+                            statusText.className = "text-xs text-purple-400 truncate";
                         }
+                        
+                        input.disabled = false;
+                        sendBtn.disabled = false;
+                        input.placeholder = "Ask me to do something...";
+                        input.focus();
                     };
                     
                     initEngine();
@@ -1378,9 +1374,8 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                                     }
                                     if (typeof userData !== 'undefined' && userData) { userData.theme = arg; localStorage.setItem('nexus_core_user_data', JSON.stringify(userData)); }
                                 } else if (cmd === 'wallpaper') {
-                                    // Make sure it's a valid URL or fallback to unsplash search based on argument
                                     let url = arg;
-                                    if(!url.startsWith('http')) url = `https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop`; // fallback
+                                    if(!url.startsWith('http')) url = `https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop`;
                                     window.setWallpaper(url);
                                 }
                             } catch(e) {
@@ -1391,7 +1386,7 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                     };
 
                     const appendMsg = (text, isUser = false) => {
-                        if (!text) return; // Don't append empty messages if purely commands
+                        if (!text) return; 
                         const div = document.createElement('div');
                         div.className = `flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`;
                         const icon = isUser ? '<i data-lucide="user" class="w-4 h-4 text-white"></i>' : '<i data-lucide="bot" class="w-4 h-4 text-white"></i>';
@@ -1410,8 +1405,8 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                     };
 
                     const handleSend = async () => {
-                        if (!engine) {
-                            alert("Engine not loaded yet or failed. Check connection and WebGPU support.");
+                        if (!engine && !useCloudFallback) {
+                            alert("Engine not loaded yet. Check connection.");
                             return;
                         }
                         
@@ -1432,19 +1427,37 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                         const loadDiv = document.createElement('div');
                         loadDiv.id = loadId;
                         loadDiv.className = 'flex gap-3';
-                        loadDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 shadow-md"><i data-lucide="sparkles" class="w-4 h-4 text-white animate-spin"></i></div><div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-400 italic">Thinking locally & observing OS...</div>`;
+                        loadDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 shadow-md"><i data-lucide="sparkles" class="w-4 h-4 text-white animate-spin"></i></div><div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-400 italic">Thinking & observing OS...</div>`;
                         history.appendChild(loadDiv);
                         lucide.createIcons({root: loadDiv});
                         history.scrollTop = history.scrollHeight;
 
                         try {
-                            const reply = await engine.chat.completions.create({
-                                messages: chatMessages,
-                                temperature: 0.7,
-                            });
+                            let aiTextRaw = "";
+
+                            if (!useCloudFallback && engine) {
+                                // 100% Local Processing (If WebGPU Supported)
+                                const reply = await engine.chat.completions.create({
+                                    messages: chatMessages,
+                                    temperature: 0.7,
+                                });
+                                aiTextRaw = reply.choices[0].message.content;
+                            } else {
+                                // Cloud Fallback Processing (Uses free, keyless Llama proxy)
+                                const response = await fetch('https://text.pollinations.ai/', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        messages: chatMessages,
+                                        model: 'llama',
+                                        seed: Math.floor(Math.random() * 1000)
+                                    })
+                                });
+                                if(!response.ok) throw new Error("Fallback Node Failed");
+                                aiTextRaw = await response.text();
+                            }
                             
-                            const aiTextRaw = reply.choices[0].message.content;
-                            chatMessages.push({ role: "assistant", content: aiTextRaw }); // Maintain strict model context
+                            chatMessages.push({ role: "assistant", content: aiTextRaw });
                             
                             const aiTextClean = parseAndExecute(aiTextRaw);
                             
