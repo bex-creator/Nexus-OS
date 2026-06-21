@@ -1253,7 +1253,7 @@
                                 <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0"><i data-lucide="bot" class="w-4 h-4 text-white"></i></div>
                                 <div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-200 shadow-md">
                                     Hello! I am your embedded Nexus OS AI, running via the lightning-fast Pollinations Cloud.
-                                    <br><br><b>I can observe and control your OS!</b> Try asking me to "Open the calculator", "Change the wallpaper to a cityscape", or "Switch to light theme".
+                                    <br><br><b>I can observe and control your OS!</b> Try asking me to "Open the start menu", "Show the calendar", "Switch to light theme", or "Lock the system".
                                 </div>
                             </div>
                         </div>
@@ -1282,10 +1282,12 @@ Available commands:
 - <EXEC>notify:Message Text</EXEC> (shows a system notification)
 - <EXEC>theme:dark</EXEC> or <EXEC>theme:light</EXEC> (changes OS theme)
 - <EXEC>wallpaper:url</EXEC> (changes desktop wallpaper to a direct image URL based on user request)
+- <EXEC>click:selector</EXEC> (clicks an element on screen. Ex: '#menu-btn' for start menu, '#ws-btn', '#clock-btn' for calendar, '#show-desktop-btn')
+- <EXEC>eval:code</EXEC> (runs raw javascript. Ex: 'toggleQuickSettings()', 'lockSystem()', 'renderDesktop()')
 
 Example of you acting:
-"I will open the calculator for you right now.
-<EXEC>open:calculator</EXEC>"
+"I will open the calendar for you right now.
+<EXEC>click:#clock-btn</EXEC>"
 
 Keep your conversational responses concise. Do not explain the tags to the user.`;
 
@@ -1337,6 +1339,11 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                                     let url = arg;
                                     if(!url.startsWith('http')) url = `https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop`;
                                     window.setWallpaper(url);
+                                } else if (cmd === 'click') {
+                                    const el = document.querySelector(arg);
+                                    if (el) el.click();
+                                } else if (cmd === 'eval') {
+                                    eval(arg);
                                 }
                             } catch(e) {
                                 console.error("AI Command Execution Error:", e);
@@ -2573,12 +2580,12 @@ Keep your conversational responses concise. Do not explain the tags to the user.
             },
 
             runner: { 
-                title: 'App Runner', icon: 'play', color: 'text-orange-400', hidden: true, 
-                render: () => `<div class="h-full bg-white flex flex-col"><div class="bg-gray-100 p-1 flex justify-between items-center border-b px-2"><span class="runner-title text-xs text-gray-500">App</span></div><iframe class="runner-frame flex-1 w-full h-full border-none bg-white" allow="camera; microphone; display-capture; geolocation; clipboard-read; clipboard-write; fullscreen"></iframe></div>`, 
+                title: 'Application', icon: 'play', color: 'text-orange-400', hidden: true, 
+                render: () => `<iframe class="runner-frame w-full h-full border-none bg-white" allow="camera; microphone; display-capture; geolocation; clipboard-read; clipboard-write; fullscreen"></iframe>`, 
                 init: (id, root, arg) => { 
                     const iframe = root.querySelector('.runner-frame'); 
-                    const title = root.querySelector('.runner-title'); 
-                    title.innerText = "Loading..."; 
+                    const winElement = document.getElementById(id);
+                    const titleText = winElement ? winElement.querySelector('.title-text') : null;
                     
                     iframe.src = "about:blank";
                     iframe.removeAttribute("srcdoc");
@@ -2588,15 +2595,17 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                         iframe.src = URL.createObjectURL(blob);
                     };
 
+                    let appName = "Application";
+
                     if (arg && typeof arg === 'object') { 
-                        title.innerText = arg.name || "Preview"; 
+                        appName = arg.name || "Application"; 
                         if (arg.url) { 
                             iframe.src = arg.url; 
                         } else if (arg.content) { 
                             loadWithStorageAccess(arg.content); 
                         } 
                     } else if (typeof arg === 'string') { 
-                        title.innerText = arg; 
+                        appName = arg.split('/').pop().replace('.html', '');
                         const f = fs.getPath(arg); 
                         if(f && f.type === 'file') { 
                             loadWithStorageAccess(f.content); 
@@ -2605,8 +2614,9 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                         } 
                     } else { 
                         iframe.srcdoc = "<div style='padding:20px;font-family:sans-serif;color:#555;'>No App Selected</div>"; 
-                        title.innerText = "No App"; 
                     } 
+                    
+                    if (titleText) titleText.innerText = appName;
                 } 
             },
 
