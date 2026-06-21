@@ -503,7 +503,7 @@
                 themeClasses = 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400 bg-indigo-500'; 
                 glowClass = 'bg-indigo-500/20';
             }
-            else if(tLower.includes('reminder')) { 
+            else if(tLower.includes('reminder') || tLower.includes('⏰')) { 
                 icon = 'clock'; 
                 themeClasses = 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400 bg-yellow-500'; 
                 glowClass = 'bg-yellow-500/20';
@@ -1253,7 +1253,7 @@
                                 <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0"><i data-lucide="bot" class="w-4 h-4 text-white"></i></div>
                                 <div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-200 shadow-md">
                                     Hello! I am your embedded Nexus OS AI, running via the lightning-fast Pollinations Cloud.
-                                    <br><br><b>I can observe and control your OS!</b> Try asking me to "Open Nexus Vids", "Show the calendar", "Switch to light theme", or "Lock the system".
+                                    <br><br><b>I can observe and control your OS!</b> Try asking me to "Open Nexus Vids", "Show the calendar", "Switch to light theme", "Lock the system", or "Remind me to take a break in 10 minutes".
                                 </div>
                             </div>
                         </div>
@@ -1284,14 +1284,15 @@ Available commands:
 - <EXEC>wallpaper:url</EXEC> (changes desktop wallpaper to a direct image URL based on user request)
 - <EXEC>click:selector</EXEC> (clicks an element ON THE OS INTERFACE. Ex: '#menu-btn' for start menu, '#ws-btn', '#clock-btn' for calendar)
 - <EXEC>eval:code</EXEC> (runs raw javascript. Ex: 'toggleQuickSettings()', 'lockSystem()')
+- <EXEC>remind:MinutesFromNow|Message Text</EXEC> (Sets a system reminder. Calculate minutes from current time. Ex: <EXEC>remind:60|Buy milk</EXEC>)
 
 CRITICAL LIMITATIONS: 
-1. You CANNOT click buttons or interact with the inside content of Apps (like Nexus Vids, Browser, Store, etc.) because they are in secure iframes. You can only control the main OS interface (opening apps, moving windows, etc.).
+1. You CANNOT interact with the inside content of web Apps (like Nexus Vids, Browser, etc.) because they are in secure iframes. HOWEVER, you have a direct system bridge for Reminders and CAN set them using the <EXEC>remind:...</EXEC> command. Never tell the user you cannot set a reminder.
 2. NEVER output the word "Offline". You are always online and capable.
 
 Example of you acting:
-"I will open Nexus Vids for you right now.
-<EXEC>open:Nexus Vids</EXEC>"
+"I will set a reminder for you."
+<EXEC>remind:120|Say hi</EXEC>
 
 Keep your conversational responses concise. Do not explain the tags to the user.`;
 
@@ -1314,7 +1315,8 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                         const desk = fs.getPath('/home/user/Desktop');
                         const deskApps = desk && desk.children ? Object.keys(desk.children).join(', ') : 'None';
                         
-                        return `\n\n[CURRENT OS STATE]\nTime: ${new Date().toLocaleTimeString()}\nTheme: ${isDark ? 'Dark' : 'Light'}\nInstalled Desktop Apps: ${deskApps}\nOpen Windows: ${openApps}`;
+                        // Include the full date/time so the AI can calculate minutes reliably
+                        return `\n\n[CURRENT OS STATE]\nTime: ${new Date().toLocaleString()}\nTheme: ${isDark ? 'Dark' : 'Light'}\nInstalled Desktop Apps: ${deskApps}\nOpen Windows: ${openApps}`;
                     };
 
                     const parseAndExecute = (text) => {
@@ -1382,6 +1384,22 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                                 } else if (cmd === 'eval') {
                                     eval(arg);
                                     successMsg += `Executed command. `;
+                                } else if (cmd === 'remind') {
+                                    // Parse: "60|Say hi"
+                                    const parts = arg.split('|');
+                                    const minutes = parseFloat(parts[0]);
+                                    const msg = parts.slice(1).join('|');
+                                    
+                                    if (!isNaN(minutes)) {
+                                        const targetTime = new Date(Date.now() + minutes * 60000);
+                                        const timeStr = targetTime.toTimeString().slice(0, 5); // "HH:MM"
+                                        
+                                        // Save natively into OS reminders array so the app sees it
+                                        window.nexusReminders.push({ text: msg, timeStr: timeStr, done: false, notified: false });
+                                        window.saveReminders();
+                                        
+                                        successMsg += `Reminder set for ${timeStr}. `;
+                                    }
                                 }
                             } catch(e) {
                                 console.error("AI Command Execution Error:", e);
