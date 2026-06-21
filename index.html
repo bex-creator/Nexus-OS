@@ -1237,20 +1237,25 @@
             },
 
             nexusAI: {
-                title: 'Nexus AI', icon: 'bot', color: 'text-purple-400', width: '500px', height: '650px',
+                title: 'Nexus AI', icon: 'bot', color: 'text-purple-400', width: '550px', height: '700px',
                 render: () => `
                     <div class="h-full flex flex-col bg-gray-900 text-white font-sans">
                         <div class="p-3 border-b border-gray-700 bg-gray-800 flex items-center gap-2 shrink-0">
-                            <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0"><i data-lucide="sparkles" class="w-4 h-4 text-white"></i></div>
-                            <div class="flex flex-col flex-1">
+                            <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 shadow-md shadow-purple-500/20"><i data-lucide="sparkles" class="w-4 h-4 text-white"></i></div>
+                            <div class="flex flex-col flex-1 min-w-0">
                                 <span class="font-bold text-lg leading-tight">Nexus Assistant</span>
                                 <span id="ai-status" class="text-xs text-yellow-400 truncate">Status: Waiting to initialize WebGPU...</span>
                             </div>
+                            <button id="ai-reset" class="p-2 hover:bg-gray-700 rounded transition-colors text-gray-400 hover:text-white" title="Reset Chat & Engine"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
                         </div>
                         <div class="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4" id="ai-chat-history">
                             <div class="flex gap-3">
                                 <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0"><i data-lucide="bot" class="w-4 h-4 text-white"></i></div>
-                                <div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-200 shadow-md">Hello! I am your embedded Nexus OS AI, powered by WebGPU and the Qwen 2.5 model. I run 100% locally in your browser!<br><br><b>Note:</b> The first time you use me, I will need to download the model into your browser cache.</div>
+                                <div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-200 shadow-md">
+                                    Hello! I am your embedded Nexus OS AI, powered by WebGPU and the Llama 3.2 model. I run 100% locally in your browser!
+                                    <br><br><b>I can now observe and control your OS!</b> Try asking me to "Open the calculator", "Change the wallpaper to a cityscape", or "Switch to light theme".
+                                    <br><br><span class="text-xs text-gray-400">Note: The first time you use me, the model will download (~1GB). If it gets stuck, ensure WebGPU is supported and enabled in your browser.</span>
+                                </div>
                             </div>
                         </div>
                         <div class="p-3 bg-gray-800 border-t border-gray-700 flex gap-2 shrink-0 items-end">
@@ -1264,21 +1269,46 @@
                     const sendBtn = root.querySelector('#ai-send');
                     const history = root.querySelector('#ai-chat-history');
                     const statusText = root.querySelector('#ai-status');
+                    const resetBtn = root.querySelector('#ai-reset');
 
                     let engine = null;
+                    
+                    const systemPrompt = `You are Nexus AI, an advanced local assistant embedded directly within Nexus OS.
+You run 100% locally in the browser via WebGPU.
+
+You can observe the OS state and control the OS by outputting special command tags in your response.
+To perform an action, you MUST output a tag exactly like this on a new line:
+<EXEC>command:argument</EXEC>
+
+Available commands:
+- <EXEC>open:appId</EXEC> (appIds: calculator, paint, browser, terminal, explorer, settings, taskmgr, reminders, music, messagesApp)
+- <EXEC>close:windowId</EXEC> (closes a specific window ID shown in the OS state)
+- <EXEC>notify:Message Text</EXEC> (shows a system notification)
+- <EXEC>theme:dark</EXEC> or <EXEC>theme:light</EXEC> (changes OS theme)
+- <EXEC>wallpaper:url</EXEC> (changes desktop wallpaper to a direct image URL based on user request)
+
+Example of you acting:
+"I will open the calculator for you right now.
+<EXEC>open:calculator</EXEC>"
+
+Keep your conversational responses concise. Do not explain the tags to the user.`;
+
                     let chatMessages = [
-                        { role: "system", content: "You are Nexus AI, an advanced system assistant integrated directly into Nexus OS. You are running completely locally in the user's browser via WebGPU. Keep your answers clear, concise, and helpful." }
+                        { role: "system", content: systemPrompt }
                     ];
 
-                    // Dynamically import WebLLM from CDN to avoid blocking OS load
-                    import("https://esm.run/@mlc.ai/web-llm").then(async (webllm) => {
+                    const initEngine = async () => {
                         try {
-                            statusText.innerText = "Loading Qwen 2.5 (1.5B) Model...";
+                            statusText.innerText = "Loading WebLLM Engine...";
                             statusText.className = "text-xs text-blue-400 truncate";
+                            input.disabled = true;
+                            sendBtn.disabled = true;
                             
-                            // Initialize the WebGPU engine with progress callback
+                            const webllm = await import("https://esm.run/@mlc.ai/web-llm");
+                            
+                            // Using a smaller, highly optimized 1B model that works better on most GPUs
                             engine = await webllm.CreateMLCEngine(
-                                "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+                                "Llama-3.2-1B-Instruct-q4f16_1-MLC",
                                 {
                                     initProgressCallback: (progress) => {
                                         statusText.innerText = progress.text;
@@ -1286,20 +1316,82 @@
                                 }
                             );
                             
-                            statusText.innerText = "Ready. Processing locally via WebGPU.";
+                            statusText.innerText = "Ready. Connected to OS locally.";
                             statusText.className = "text-xs text-green-400 truncate";
                             input.disabled = false;
                             sendBtn.disabled = false;
-                            input.placeholder = "Ask me anything...";
+                            input.placeholder = "Ask me to do something...";
                             input.focus();
                         } catch (err) {
                             console.error("WebLLM Error:", err);
-                            statusText.innerText = "Error: WebGPU may not be supported on this browser.";
-                            statusText.className = "text-xs text-red-400 truncate";
+                            statusText.innerText = "WebGPU Error (Enable chrome://flags/#enable-unsafe-webgpu)";
+                            statusText.className = "text-xs text-red-400 truncate cursor-help";
+                            statusText.title = err.message;
+                            
+                            // Re-enable to let them try again after error
+                            input.disabled = false;
+                            sendBtn.disabled = false;
+                            input.placeholder = "Engine failed. Check console or WebGPU support.";
                         }
-                    });
+                    };
+                    
+                    initEngine();
+
+                    resetBtn.onclick = () => {
+                        chatMessages = [{ role: "system", content: systemPrompt }];
+                        history.innerHTML = '';
+                        statusText.innerText = "Chat reset.";
+                    };
+
+                    const getOSContext = () => {
+                        let openApps = Object.keys(windows).map(wid => `${appDefinitions[windows[wid].appId]?.title || windows[wid].appId} (Window ID: ${wid})`).join(', ');
+                        if (!openApps) openApps = "None";
+                        const isDark = document.documentElement.style.getPropertyValue('--bg-color') === '#f3f4f6' ? false : true;
+                        return `\n\n[CURRENT OS STATE (Do not mention this context to the user unless relevant)]\nTime: ${new Date().toLocaleTimeString()}\nTheme: ${isDark ? 'Dark' : 'Light'}\nOpen Windows: ${openApps}`;
+                    };
+
+                    const parseAndExecute = (text) => {
+                        const regex = /<EXEC>(.*?):(.*?)<\/EXEC>/g;
+                        let match;
+                        let cleanedText = text;
+                        while ((match = regex.exec(text)) !== null) {
+                            const cmd = match[1].trim();
+                            const arg = match[2].trim();
+                            cleanedText = cleanedText.replace(match[0], '').trim();
+
+                            console.log("AI Executing:", cmd, arg);
+
+                            try {
+                                if (cmd === 'open') {
+                                    window.openApp(arg);
+                                } else if (cmd === 'close') {
+                                    window.closeWindow(arg);
+                                } else if (cmd === 'notify') {
+                                    window.notify("Nexus AI", arg, 4000);
+                                } else if (cmd === 'theme') {
+                                    window.applyTheme(arg);
+                                    const isDark = arg === 'dark';
+                                    const toggleBtn = document.getElementById('qs-theme-toggle');
+                                    if(toggleBtn) {
+                                        document.getElementById('qs-theme-knob').style.left = isDark ? '22px' : '2px';
+                                        toggleBtn.className = isDark ? 'w-10 h-5 bg-blue-600 rounded-full relative transition-colors shadow-inner' : 'w-10 h-5 bg-gray-400 rounded-full relative transition-colors shadow-inner';
+                                    }
+                                    if (typeof userData !== 'undefined' && userData) { userData.theme = arg; localStorage.setItem('nexus_core_user_data', JSON.stringify(userData)); }
+                                } else if (cmd === 'wallpaper') {
+                                    // Make sure it's a valid URL or fallback to unsplash search based on argument
+                                    let url = arg;
+                                    if(!url.startsWith('http')) url = `https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop`; // fallback
+                                    window.setWallpaper(url);
+                                }
+                            } catch(e) {
+                                console.error("AI Command Execution Error:", e);
+                            }
+                        }
+                        return cleanedText;
+                    };
 
                     const appendMsg = (text, isUser = false) => {
+                        if (!text) return; // Don't append empty messages if purely commands
                         const div = document.createElement('div');
                         div.className = `flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`;
                         const icon = isUser ? '<i data-lucide="user" class="w-4 h-4 text-white"></i>' : '<i data-lucide="bot" class="w-4 h-4 text-white"></i>';
@@ -1318,50 +1410,52 @@
                     };
 
                     const handleSend = async () => {
-                        if (!engine) return;
+                        if (!engine) {
+                            alert("Engine not loaded yet or failed. Check connection and WebGPU support.");
+                            return;
+                        }
                         
                         const val = input.value.trim();
                         if (!val) return;
                         
-                        // Add User message
                         appendMsg(val, true);
-                        chatMessages.push({ role: "user", content: val });
                         
-                        // Lock inputs
+                        // Append OS state to the user's prompt invisibly in the chat history
+                        const contextVal = val + getOSContext();
+                        chatMessages.push({ role: "user", content: contextVal });
+                        
                         input.value = '';
                         input.disabled = true;
                         sendBtn.disabled = true;
                         
-                        // Show typing indicator
                         const loadId = 'load-' + Date.now();
                         const loadDiv = document.createElement('div');
                         loadDiv.id = loadId;
                         loadDiv.className = 'flex gap-3';
-                        loadDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 shadow-md"><i data-lucide="sparkles" class="w-4 h-4 text-white animate-spin"></i></div><div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-400 italic">Thinking locally...</div>`;
+                        loadDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 shadow-md"><i data-lucide="sparkles" class="w-4 h-4 text-white animate-spin"></i></div><div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-400 italic">Thinking locally & observing OS...</div>`;
                         history.appendChild(loadDiv);
                         lucide.createIcons({root: loadDiv});
                         history.scrollTop = history.scrollHeight;
 
                         try {
-                            // Run the inference using WebGPU
                             const reply = await engine.chat.completions.create({
                                 messages: chatMessages,
                                 temperature: 0.7,
                             });
                             
-                            const aiText = reply.choices[0].message.content;
-                            chatMessages.push({ role: "assistant", content: aiText }); // Keep context
+                            const aiTextRaw = reply.choices[0].message.content;
+                            chatMessages.push({ role: "assistant", content: aiTextRaw }); // Maintain strict model context
                             
-                            // Remove typing indicator and append real response
+                            const aiTextClean = parseAndExecute(aiTextRaw);
+                            
                             document.getElementById(loadId)?.remove();
-                            appendMsg(aiText, false);
+                            appendMsg(aiTextClean || "Command executed.", false);
                         } catch (err) {
                             console.error("Inference Error:", err);
                             document.getElementById(loadId)?.remove();
                             appendMsg("Error during generation. Check console.", false);
                         }
                         
-                        // Unlock inputs
                         input.disabled = false;
                         sendBtn.disabled = false;
                         input.focus();
