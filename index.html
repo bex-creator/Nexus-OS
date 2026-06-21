@@ -1253,7 +1253,7 @@
                                 <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0"><i data-lucide="bot" class="w-4 h-4 text-white"></i></div>
                                 <div class="bg-gray-800 border border-gray-700 p-3 rounded-xl rounded-tl-none text-sm text-gray-200 shadow-md">
                                     Hello! I am your embedded Nexus OS AI, running via the lightning-fast Pollinations Cloud.
-                                    <br><br><b>I can observe and control your OS!</b> Try asking me to "Open the start menu", "Show the calendar", "Switch to light theme", or "Lock the system".
+                                    <br><br><b>I can observe and control your OS!</b> Try asking me to "Open Nexus Vids", "Show the calendar", "Switch to light theme", or "Lock the system".
                                 </div>
                             </div>
                         </div>
@@ -1277,19 +1277,21 @@ To perform an action, you MUST output a tag exactly like this on a new line:
 <EXEC>command:argument</EXEC>
 
 Available commands:
-- <EXEC>open:appId</EXEC> (appIds: calculator, paint, browser, terminal, explorer, settings, taskmgr, reminders, music, messagesApp)
+- <EXEC>open:AppName</EXEC> (Opens an app from the Installed Desktop Apps list. Ex: <EXEC>open:Nexus Vids</EXEC>, <EXEC>open:Calculator</EXEC>)
 - <EXEC>close:windowId</EXEC> (closes a specific window ID shown in the OS state)
 - <EXEC>notify:Message Text</EXEC> (shows a system notification)
 - <EXEC>theme:dark</EXEC> or <EXEC>theme:light</EXEC> (changes OS theme)
 - <EXEC>wallpaper:url</EXEC> (changes desktop wallpaper to a direct image URL based on user request)
-- <EXEC>click:selector</EXEC> (clicks an element ON THE OS INTERFACE. Ex: '#menu-btn' for start menu, '#ws-btn', '#clock-btn' for calendar, '#show-desktop-btn')
-- <EXEC>eval:code</EXEC> (runs raw javascript. Ex: 'toggleQuickSettings()', 'lockSystem()', 'renderDesktop()')
+- <EXEC>click:selector</EXEC> (clicks an element ON THE OS INTERFACE. Ex: '#menu-btn' for start menu, '#ws-btn', '#clock-btn' for calendar)
+- <EXEC>eval:code</EXEC> (runs raw javascript. Ex: 'toggleQuickSettings()', 'lockSystem()')
 
-CRITICAL LIMITATION: You CANNOT click buttons or interact with the inside content of Apps (like Nexus Vids, Browser, Store, etc.). Apps are sandboxed in external iframes due to browser security. You can only control the OS window manager (opening/closing apps) and the OS taskbar/settings. If a user asks you to do something inside an app, politely explain that you can only control the main OS interface.
+CRITICAL LIMITATIONS: 
+1. You CANNOT click buttons or interact with the inside content of Apps (like Nexus Vids, Browser, Store, etc.) because they are in secure iframes. You can only control the main OS interface (opening apps, moving windows, etc.).
+2. NEVER output the word "Offline". You are always online and capable.
 
 Example of you acting:
-"I will open the calendar for you right now.
-<EXEC>click:#clock-btn</EXEC>"
+"I will open Nexus Vids for you right now.
+<EXEC>open:Nexus Vids</EXEC>"
 
 Keep your conversational responses concise. Do not explain the tags to the user.`;
 
@@ -1307,7 +1309,12 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                         let openApps = Object.keys(windows).map(wid => `${appDefinitions[windows[wid].appId]?.title || windows[wid].appId} (Window ID: ${wid})`).join(', ');
                         if (!openApps) openApps = "None";
                         const isDark = document.documentElement.style.getPropertyValue('--bg-color') === '#f3f4f6' ? false : true;
-                        return `\n\n[CURRENT OS STATE (Do not mention this context to the user unless relevant)]\nTime: ${new Date().toLocaleTimeString()}\nTheme: ${isDark ? 'Dark' : 'Light'}\nOpen Windows: ${openApps}`;
+                        
+                        // Read desktop items to allow dynamic opening
+                        const desk = fs.getPath('/home/user/Desktop');
+                        const deskApps = desk && desk.children ? Object.keys(desk.children).join(', ') : 'None';
+                        
+                        return `\n\n[CURRENT OS STATE]\nTime: ${new Date().toLocaleTimeString()}\nTheme: ${isDark ? 'Dark' : 'Light'}\nInstalled Desktop Apps: ${deskApps}\nOpen Windows: ${openApps}`;
                     };
 
                     const parseAndExecute = (text) => {
@@ -1325,8 +1332,24 @@ Keep your conversational responses concise. Do not explain the tags to the user.
 
                             try {
                                 if (cmd === 'open') {
-                                    window.openApp(arg);
-                                    successMsg += `Opened ${arg}. `;
+                                    // Dynamically match against desktop apps
+                                    const desk = fs.getPath('/home/user/Desktop');
+                                    let found = false;
+                                    if(desk && desk.children) {
+                                        for(let [name, data] of Object.entries(desk.children)) {
+                                            if(name.toLowerCase().includes(arg.toLowerCase())) {
+                                                if(data.action) eval(data.action);
+                                                else window.openApp('editor', `/home/user/Desktop/${name}`);
+                                                found = true;
+                                                successMsg += `Opened ${name}. `;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if(!found) {
+                                        window.openApp(arg);
+                                        successMsg += `Opened ${arg}. `;
+                                    }
                                 } else if (cmd === 'close') {
                                     window.closeWindow(arg);
                                     successMsg += `Closed window ${arg}. `;
@@ -1352,9 +1375,9 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                                     const el = document.querySelector(arg);
                                     if (el) {
                                         el.click();
-                                        successMsg += `Clicked ${arg}. `;
+                                        successMsg += `Clicked element. `;
                                     } else {
-                                        successMsg += `Failed to find element to click. `;
+                                        successMsg += `Failed to find element. `;
                                     }
                                 } else if (cmd === 'eval') {
                                     eval(arg);
@@ -1421,7 +1444,7 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     messages: chatMessages,
-                                    model: 'openai', // Using openai model mapped by pollinations for robust logic
+                                    model: 'openai', 
                                     seed: Math.floor(Math.random() * 1000)
                                 })
                             });
@@ -1454,7 +1477,6 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                         } 
                     };
                     
-                    // Focus input on initial open since it's ready immediately
                     setTimeout(() => input.focus(), 100);
                 }
             },
