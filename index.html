@@ -1282,8 +1282,10 @@ Available commands:
 - <EXEC>notify:Message Text</EXEC> (shows a system notification)
 - <EXEC>theme:dark</EXEC> or <EXEC>theme:light</EXEC> (changes OS theme)
 - <EXEC>wallpaper:url</EXEC> (changes desktop wallpaper to a direct image URL based on user request)
-- <EXEC>click:selector</EXEC> (clicks an element on screen. Ex: '#menu-btn' for start menu, '#ws-btn', '#clock-btn' for calendar, '#show-desktop-btn')
+- <EXEC>click:selector</EXEC> (clicks an element ON THE OS INTERFACE. Ex: '#menu-btn' for start menu, '#ws-btn', '#clock-btn' for calendar, '#show-desktop-btn')
 - <EXEC>eval:code</EXEC> (runs raw javascript. Ex: 'toggleQuickSettings()', 'lockSystem()', 'renderDesktop()')
+
+CRITICAL LIMITATION: You CANNOT click buttons or interact with the inside content of Apps (like Nexus Vids, Browser, Store, etc.). Apps are sandboxed in external iframes due to browser security. You can only control the OS window manager (opening/closing apps) and the OS taskbar/settings. If a user asks you to do something inside an app, politely explain that you can only control the main OS interface.
 
 Example of you acting:
 "I will open the calendar for you right now.
@@ -1312,6 +1314,8 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                         const regex = /<EXEC>(.*?):(.*?)<\/EXEC>/g;
                         let match;
                         let cleanedText = text;
+                        let successMsg = "";
+                        
                         while ((match = regex.exec(text)) !== null) {
                             const cmd = match[1].trim();
                             const arg = match[2].trim();
@@ -1322,10 +1326,13 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                             try {
                                 if (cmd === 'open') {
                                     window.openApp(arg);
+                                    successMsg += `Opened ${arg}. `;
                                 } else if (cmd === 'close') {
                                     window.closeWindow(arg);
+                                    successMsg += `Closed window ${arg}. `;
                                 } else if (cmd === 'notify') {
                                     window.notify("Nexus AI", arg, 4000);
+                                    successMsg += `Notification sent. `;
                                 } else if (cmd === 'theme') {
                                     window.applyTheme(arg);
                                     const isDark = arg === 'dark';
@@ -1335,19 +1342,32 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                                         toggleBtn.className = isDark ? 'w-10 h-5 bg-blue-600 rounded-full relative transition-colors shadow-inner' : 'w-10 h-5 bg-gray-400 rounded-full relative transition-colors shadow-inner';
                                     }
                                     if (typeof userData !== 'undefined' && userData) { userData.theme = arg; localStorage.setItem('nexus_core_user_data', JSON.stringify(userData)); }
+                                    successMsg += `Theme changed. `;
                                 } else if (cmd === 'wallpaper') {
                                     let url = arg;
                                     if(!url.startsWith('http')) url = `https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop`;
                                     window.setWallpaper(url);
+                                    successMsg += `Wallpaper updated. `;
                                 } else if (cmd === 'click') {
                                     const el = document.querySelector(arg);
-                                    if (el) el.click();
+                                    if (el) {
+                                        el.click();
+                                        successMsg += `Clicked ${arg}. `;
+                                    } else {
+                                        successMsg += `Failed to find element to click. `;
+                                    }
                                 } else if (cmd === 'eval') {
                                     eval(arg);
+                                    successMsg += `Executed command. `;
                                 }
                             } catch(e) {
                                 console.error("AI Command Execution Error:", e);
                             }
+                        }
+                        
+                        // If it output tags but the resulting text is empty, show what it did
+                        if (cleanedText === "" && successMsg !== "") {
+                            return `<span class="italic text-gray-400">${successMsg}</span>`;
                         }
                         return cleanedText;
                     };
@@ -1414,7 +1434,7 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                             const aiTextClean = parseAndExecute(aiTextRaw);
                             
                             document.getElementById(loadId)?.remove();
-                            appendMsg(aiTextClean || "Command executed.", false);
+                            appendMsg(aiTextClean, false);
                         } catch (err) {
                             console.error("Inference Error:", err);
                             document.getElementById(loadId)?.remove();
