@@ -90,7 +90,7 @@
 <body class="h-screen w-screen select-none wallpaper relative" oncontextmenu="return false;">
 
     <!-- Hidden Inputs -->
-    <input type="file" id="app-uploader" accept=".html" class="hidden">
+    <input type="file" id="app-uploader" accept=".html,.exe" class="hidden">
     <input type="file" id="wp-uploader" accept="image/*" class="hidden">
 
     <!-- Global Drag-and-Drop Overlay -->
@@ -182,6 +182,33 @@
         </div>
     </div>
 
+    <!-- Installer Modal -->
+    <div id="installer-modal" class="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center hidden opacity-0 transition-opacity duration-300 z-[9999]">
+        <div class="bg-gray-900 border border-gray-700 w-[420px] rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden transform scale-95 transition-transform duration-300" id="installer-content">
+            <div class="bg-gray-950 p-3 border-b border-gray-800 flex items-center gap-2">
+                <i data-lucide="package" class="w-5 h-5 text-blue-500"></i>
+                <span class="font-bold text-sm text-gray-200">Nexus Package Installer</span>
+            </div>
+            <div class="p-8 flex flex-col items-center text-center relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full pointer-events-none"></div>
+                <div class="w-20 h-20 bg-gradient-to-br from-blue-900/40 to-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-500/30 mb-5 shadow-lg shadow-blue-500/10" id="inst-icon">
+                    <i data-lucide="box" class="w-10 h-10 text-blue-400"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-1" id="inst-name">Unknown App</h3>
+                <p class="text-sm text-gray-400 mb-8 font-medium" id="inst-status">Ready to install</p>
+                
+                <div class="w-full bg-gray-950 rounded-full h-2 mb-2 overflow-hidden hidden border border-gray-800" id="inst-progress-bg">
+                    <div class="bg-gradient-to-r from-blue-600 to-cyan-400 h-full rounded-full w-0 transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]" id="inst-progress-bar"></div>
+                </div>
+                
+                <div class="w-full flex justify-between mt-6 pt-6 border-t border-gray-800/50">
+                    <button id="inst-cancel" class="px-5 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 transition-colors text-sm font-medium">Cancel</button>
+                    <button id="inst-start" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-lg text-sm font-bold transition-all transform hover:scale-105 active:scale-95">Install</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Boot Screen -->
     <div id="boot-screen" class="absolute inset-0 bg-black flex flex-col justify-start p-10 terminal-font text-gray-300 text-sm overflow-hidden">
         <div id="boot-text"></div>
@@ -253,7 +280,7 @@
         <button onclick="window.createNewFolder(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="folder-plus" class="w-4 h-4 text-yellow-500"></i> New Folder</button>
         <button onclick="window.createNewFile(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="file-plus" class="w-4 h-4 text-blue-400"></i> New File</button>
         <div class="h-px bg-gray-700 my-1"></div>
-        <button onclick="document.getElementById('app-uploader').click(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="download" class="w-4 h-4 text-green-400"></i> Install App (.html)</button>
+        <button onclick="document.getElementById('app-uploader').click(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="download" class="w-4 h-4 text-green-400"></i> Install Package</button>
         <button onclick="openApp('settings'); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="image" class="w-4 h-4 text-blue-400"></i> Change Wallpaper</button>
         <div class="h-px bg-gray-700 my-1"></div>
         <button onclick="toggleFullScreen(); hideContextMenu()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-gray-200 flex items-center gap-2"><i data-lucide="maximize" class="w-4 h-4"></i> Toggle Fullscreen</button>
@@ -584,6 +611,105 @@
             }
         };
 
+        window.startInstaller = (file, content) => {
+            const modal = document.getElementById('installer-modal');
+            const contentDiv = document.getElementById('installer-content');
+            const nameEl = document.getElementById('inst-name');
+            const statusEl = document.getElementById('inst-status');
+            const progBg = document.getElementById('inst-progress-bg');
+            const progBar = document.getElementById('inst-progress-bar');
+            const cancelBtn = document.getElementById('inst-cancel');
+            const startBtn = document.getElementById('inst-start');
+            
+            // Try to extract a clean app name from the HTML title, fallback to filename
+            let appName = file.name.replace(/\.(html|exe)$/i, '');
+            const titleMatch = content.match(/<title>(.*?)<\/title>/i);
+            if (titleMatch && titleMatch[1] && titleMatch[1].length < 30) {
+                appName = titleMatch[1];
+            }
+            
+            nameEl.innerText = appName;
+            statusEl.innerText = `Size: ${(file.size / 1024).toFixed(1)} KB - Ready to install`;
+            statusEl.className = "text-sm text-gray-400 mb-8 font-medium";
+            progBg.classList.add('hidden');
+            progBar.style.width = '0%';
+            
+            cancelBtn.innerText = 'Cancel';
+            cancelBtn.disabled = false;
+            cancelBtn.onclick = () => {
+                modal.classList.add('opacity-0');
+                contentDiv.classList.remove('scale-100');
+                contentDiv.classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            };
+            
+            startBtn.innerText = 'Install';
+            startBtn.disabled = false;
+            startBtn.classList.replace('bg-green-600', 'bg-blue-600');
+            startBtn.classList.replace('hover:bg-green-500', 'hover:bg-blue-500');
+            
+            startBtn.onclick = () => {
+                startBtn.disabled = true;
+                cancelBtn.disabled = true;
+                progBg.classList.remove('hidden');
+                
+                // Simulate OS Installation Process
+                statusEl.innerText = "Scanning package for threats...";
+                progBar.style.width = '20%';
+                
+                setTimeout(() => {
+                    statusEl.innerText = "Extracting local assets...";
+                    progBar.style.width = '60%';
+                    
+                    setTimeout(() => {
+                        statusEl.innerText = "Registering application...";
+                        progBar.style.width = '90%';
+                        
+                        setTimeout(() => {
+                            // Actual installation logic
+                            const path = `/home/user/apps/${appName}.html`;
+                            if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
+                            fs.createPath(path, 'file', content);
+                            fs.getPath('/home/user/Desktop').children[appName] = { 
+                                type: 'link', 
+                                action: `openApp('runner', '${path}')`, 
+                                icon: 'box', 
+                                color: 'text-blue-400' 
+                            };
+                            saveFS();
+                            renderDesktop();
+                            
+                            // Visual Completion
+                            statusEl.innerText = "Installation complete!";
+                            statusEl.className = "text-sm text-green-400 mb-8 font-bold tracking-wide";
+                            progBar.style.width = '100%';
+                            
+                            startBtn.disabled = false;
+                            cancelBtn.disabled = false;
+                            startBtn.innerText = 'Launch App';
+                            startBtn.classList.replace('bg-blue-600', 'bg-green-600');
+                            startBtn.classList.replace('hover:bg-blue-500', 'hover:bg-green-500');
+                            cancelBtn.innerText = 'Close';
+                            
+                            startBtn.onclick = () => {
+                                cancelBtn.click();
+                                window.openApp('runner', path);
+                            };
+                            
+                            window.notify("Installation Complete", `${appName} was successfully installed.`, 5000);
+                        }, 800);
+                    }, 600);
+                }, 800);
+            };
+            
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                contentDiv.classList.remove('scale-95');
+                contentDiv.classList.add('scale-100');
+            });
+        };
+
         let dragCounter = 0;
         document.addEventListener('dragenter', (e) => {
             e.preventDefault();
@@ -617,6 +743,12 @@
                     const reader = new FileReader();
                     reader.onload = (ev) => {
                         try {
+                            if (file.name.endsWith('.html') || file.name.endsWith('.exe')) {
+                                // Route web-apps through the new installer GUI!
+                                window.startInstaller(file, ev.target.result);
+                                return;
+                            }
+
                             const isImage = file.type.startsWith('image/');
                             const path = `/home/user/Desktop/${file.name}`;
                             if(!fs.getPath('/home/user/Desktop')) fs.createPath('/home/user/Desktop', 'dir');
@@ -626,7 +758,8 @@
                             if (isImage && node) { node.img = ev.target.result; saveFS(); }
                             
                             successCount++;
-                            if (successCount === e.dataTransfer.files.length) {
+                            // Only notify if it wasn't intercepted by the installer
+                            if (successCount > 0 && successCount === e.dataTransfer.files.length) {
                                 renderDesktop();
                                 window.notify("Upload Complete", `Saved ${successCount} file(s) to Desktop.`);
                             }
@@ -634,7 +767,7 @@
                             alert(`Failed to save ${file.name}. LocalStorage might be full (Browsers limit sizes).`);
                         }
                     };
-                    if(file.type.startsWith('text/') || file.name.endsWith('.html') || file.name.endsWith('.md')) {
+                    if(file.type.startsWith('text/') || file.name.endsWith('.html') || file.name.endsWith('.exe') || file.name.endsWith('.md')) {
                         reader.readAsText(file);
                     } else {
                         reader.readAsDataURL(file); // Base64 encoding for media/other files
@@ -3385,11 +3518,7 @@ Keep your conversational responses concise. Do not explain the tags to the user.
             const file = e.target.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = (ev) => {
-                const path = `/home/user/apps/${file.name}`;
-                if(!fs.getPath('/home/user/apps')) fs.createPath('/home/user/apps', 'dir');
-                fs.createPath(path, 'file', ev.target.result);
-                fs.getPath('/home/user/Desktop').children[file.name.replace('.html','')] = { type: 'link', action: `openApp('runner', '${path}')`, icon: 'box', color: 'text-orange-500' };
-                renderDesktop(); window.notify("App Installed", file.name);
+                window.startInstaller(file, ev.target.result);
             };
             reader.readAsText(file); e.target.value = '';
         };
