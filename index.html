@@ -1181,6 +1181,10 @@
             if (deskNode.children["Chat"]) delete deskNode.children["Chat"];
             if (deskNode.children["Messages"]) delete deskNode.children["Messages"];
             
+            if (deskNode.children["Nexus Docs"]) {
+                delete deskNode.children["Nexus Docs"];
+            }
+            
             if (!deskNode.children["Global Chat"]) {
                 deskNode.children["Global Chat"] = { type: 'link', action: "openApp('messagesApp')", icon: 'message-square', color: 'text-blue-500' };
             }
@@ -1211,6 +1215,67 @@
         };
 
         const appDefinitions = {
+            nexusDocs: {
+                title: 'Nexus Docs', icon: 'file-text', color: 'text-blue-500', width: '800px', height: '650px',
+                render: () => `
+                    <div class="h-full flex flex-col bg-gray-50 text-gray-900 font-sans">
+                        <div class="bg-white border-b border-gray-200 p-2 flex gap-2 shrink-0 items-center shadow-sm">
+                            <button class="nd-btn px-3 py-1.5 hover:bg-gray-100 rounded font-bold text-gray-700 transition-colors" onclick="document.execCommand('bold', false, null)">B</button>
+                            <button class="nd-btn px-3 py-1.5 hover:bg-gray-100 rounded italic text-gray-700 transition-colors" onclick="document.execCommand('italic', false, null)">I</button>
+                            <button class="nd-btn px-3 py-1.5 hover:bg-gray-100 rounded underline text-gray-700 transition-colors" onclick="document.execCommand('underline', false, null)">U</button>
+                            <div class="w-px h-5 bg-gray-300 mx-2"></div>
+                            <button class="nd-save px-4 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors"><i data-lucide="save" class="w-4 h-4"></i> Save to Documents</button>
+                            <span class="nd-status text-xs text-green-600 ml-3 opacity-0 transition-opacity font-medium flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3 h-3"></i> Saved!</span>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+                            <div class="nd-editor min-h-[80%] bg-white shadow-md border border-gray-200 p-8 sm:p-12 rounded-lg outline-none text-gray-800 leading-relaxed max-w-3xl mx-auto focus:ring-2 focus:ring-blue-500/20 transition-shadow" contenteditable="true">
+                                <h1 style="font-size: 2.25em; font-weight: 700; margin-bottom: 16px;">Untitled Document</h1>
+                                <p>Start typing here...</p>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                init: (id, root, arg) => {
+                    const editor = root.querySelector('.nd-editor');
+                    const saveBtn = root.querySelector('.nd-save');
+                    const status = root.querySelector('.nd-status');
+
+                    // If opened via an existing document shortcut, load the content
+                    if (typeof arg === 'string' && arg.startsWith('/home/user/Documents/')) {
+                        const file = fs.getPath(arg);
+                        if (file && file.content) editor.innerHTML = file.content;
+                    }
+
+                    saveBtn.onclick = () => {
+                        let docName = prompt("Enter document name (e.g. My Essay):", "My Document");
+                        if (!docName) return;
+                        if (!docName.endsWith('.html')) docName += '.html';
+                        
+                        const path = '/home/user/Documents/' + docName;
+                        if (!fs.getPath('/home/user/Documents')) fs.createPath('/home/user/Documents', 'dir');
+                        
+                        fs.createPath(path, 'file', editor.innerHTML);
+                        
+                        // Show saved status
+                        status.classList.remove('opacity-0');
+                        setTimeout(() => status.classList.add('opacity-0'), 2500);
+                        
+                        // Automatically put a shortcut on the desktop if it's new
+                        const cleanName = docName.replace('.html', '');
+                        if (!fs.getPath('/home/user/Desktop').children[cleanName]) {
+                            fs.getPath('/home/user/Desktop').children[cleanName] = {
+                                type: 'link',
+                                action: `openApp('nexusDocs', '${path}')`,
+                                icon: 'file-text',
+                                color: 'text-blue-500'
+                            };
+                            saveFS();
+                            renderDesktop();
+                        }
+                    };
+                }
+            },
+
             myCustomApp: {
                 title: 'My Custom App',
                 icon: 'star',
@@ -1277,7 +1342,7 @@ To perform an action, you MUST output a tag exactly like this on a new line:
 <EXEC>command:argument</EXEC>
 
 Available commands:
-- <EXEC>open:AppName</EXEC> (Opens an app from the Installed Desktop Apps list. Ex: <EXEC>open:Nexus Vids</EXEC>, <EXEC>open:Calculator</EXEC>)
+- <EXEC>open:AppName</EXEC> (Opens an app from the Installed Desktop Apps list. Ex: <EXEC>open:Nexus Vids</EXEC>, <EXEC>open:Nexus Docs</EXEC>, <EXEC>open:Calculator</EXEC>)
 - <EXEC>close:windowId</EXEC> (closes a specific window ID shown in the OS state)
 - <EXEC>notify:Message Text</EXEC> (shows a system notification)
 - <EXEC>theme:dark</EXEC> or <EXEC>theme:light</EXEC> (changes OS theme)
@@ -1285,6 +1350,7 @@ Available commands:
 - <EXEC>click:selector</EXEC> (clicks an element ON THE OS INTERFACE. Ex: '#menu-btn' for start menu, '#ws-btn', '#clock-btn' for calendar)
 - <EXEC>eval:code</EXEC> (runs raw javascript. Ex: 'toggleQuickSettings()', 'lockSystem()')
 - <EXEC>remind:MinutesFromNow|Message Text</EXEC> (Sets a system reminder. Calculate minutes from current time. Ex: <EXEC>remind:60|Buy milk</EXEC>)
+- <EXEC>writeDoc:Filename.html|Content</EXEC> (Creates a document and writes content. Ex: <EXEC>writeDoc:Story.html|<h1>My Story</h1><p>Once upon a time...</p></EXEC>)
 
 CRITICAL LIMITATIONS: 
 1. You CANNOT interact with the inside content of web Apps (like Nexus Vids, Browser, etc.) because they are in secure iframes. HOWEVER, you have a direct system bridge for Reminders and CAN set them using the <EXEC>remind:...</EXEC> command. Never tell the user you cannot set a reminder.
@@ -1384,6 +1450,15 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                                 } else if (cmd === 'eval') {
                                     eval(arg);
                                     successMsg += `Executed command. `;
+                                } else if (cmd === 'writeDoc') {
+                                    const parts = arg.split('|');
+                                    const filename = parts[0];
+                                    const content = parts.slice(1).join('|');
+                                    const path = '/home/user/Documents/' + filename;
+                                    if (!fs.getPath('/home/user/Documents')) fs.createPath('/home/user/Documents', 'dir');
+                                    fs.createPath(path, 'file', content);
+                                    successMsg += `Document ${filename} created. `;
+                                    window.openApp('nexusDocs', path);
                                 } else if (cmd === 'remind') {
                                     // Parse: "60|Say hi"
                                     const parts = arg.split('|');
@@ -1496,6 +1571,107 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                     };
                     
                     setTimeout(() => input.focus(), 100);
+                }
+            },
+
+            music: {
+                title: 'Nexus Music', icon: 'music', color: 'text-indigo-400', width: '600px', height: '500px',
+                render: () => `
+                    <div class="h-full bg-[#121212] text-white flex flex-col font-sans">
+                        <div class="p-6 pb-2 shrink-0 flex justify-between items-end">
+                            <div>
+                                <h1 class="text-3xl font-bold tracking-tight">Library</h1>
+                                <p class="text-gray-400 text-sm mt-1" id="music-count">0 tracks</p>
+                            </div>
+                            <button id="music-upload-btn" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors shadow-lg shadow-indigo-500/20"><i data-lucide="upload" class="w-4 h-4"></i> Upload Music</button>
+                            <input type="file" id="music-file-input" accept="audio/*" class="hidden" multiple>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-6 custom-scrollbar" id="music-list"></div>
+                        <div class="bg-[#18181b] border-t border-gray-800 p-4 shrink-0 flex items-center gap-4">
+                            <img id="app-media-cover" src="https://placehold.co/150x150/1f2937/ffffff.png?text=Music" class="w-14 h-14 rounded-md shadow-md object-cover">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold truncate" id="app-media-title">Not Playing</div>
+                                <div class="text-xs text-gray-400 truncate" id="app-media-artist">Select a track</div>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span id="app-media-time" class="text-[10px] text-gray-500 w-8">0:00</span>
+                                    <input type="range" id="app-media-progress" class="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" value="0" min="0" max="100">
+                                    <span id="app-media-duration" class="text-[10px] text-gray-500 w-8">0:00</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button onclick="mediaManager.prev()" class="text-gray-400 hover:text-white transition"><i data-lucide="skip-back" class="w-5 h-5 fill-current"></i></button>
+                                <button onclick="mediaManager.togglePlay()" id="app-media-play" class="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:bg-gray-200 transition shadow-lg"><i data-lucide="play" class="w-5 h-5 ml-1 fill-current"></i></button>
+                                <button onclick="mediaManager.next()" class="text-gray-400 hover:text-white transition"><i data-lucide="skip-forward" class="w-5 h-5 fill-current"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                init: (id, root) => {
+                    const list = root.querySelector('#music-list');
+                    const fileInput = root.querySelector('#music-file-input');
+                    const uploadBtn = root.querySelector('#music-upload-btn');
+                    
+                    uploadBtn.onclick = () => fileInput.click();
+                    fileInput.onchange = (e) => {
+                        Array.from(e.target.files).forEach(f => window.mediaManager.addTrack(f));
+                        e.target.value = '';
+                    };
+
+                    const renderLibrary = () => {
+                        list.innerHTML = '';
+                        root.querySelector('#music-count').innerText = `${window.mediaManager.playlist.length} tracks`;
+                        
+                        if (window.mediaManager.playlist.length === 0) {
+                            list.innerHTML = '<div class="text-center text-gray-500 mt-10">Library is empty. Add some tracks!</div>';
+                            return;
+                        }
+
+                        window.mediaManager.playlist.forEach((track, idx) => {
+                            const isPlaying = window.mediaManager.currentIndex === idx;
+                            const el = document.createElement('div');
+                            el.className = `flex items-center gap-4 p-3 rounded-xl cursor-pointer transition-all group ${isPlaying ? 'bg-indigo-600/20 border border-indigo-500/30' : 'hover:bg-white/5 border border-transparent'}`;
+                            el.innerHTML = `
+                                <div class="w-10 h-10 rounded shadow-md overflow-hidden relative shrink-0">
+                                    <img src="${track.cover}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <i data-lucide="play" class="w-4 h-4 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-bold text-sm truncate ${isPlaying ? 'text-indigo-400' : 'text-white'}">${track.title}</div>
+                                    <div class="text-xs text-gray-400 truncate">${track.artist}</div>
+                                </div>
+                                ${isPlaying ? '<div class="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1] animate-pulse"></div>' : ''}
+                            `;
+                            el.onclick = () => window.mediaManager.playTrack(idx);
+                            list.appendChild(el);
+                        });
+                        lucide.createIcons({root: list});
+                    };
+
+                    window.refreshMusicAppUI = renderLibrary;
+                    window.updateMusicAppHighlight = renderLibrary;
+                    
+                    renderLibrary();
+                    
+                    const appProg = root.querySelector('#app-media-progress');
+                    appProg.addEventListener('input', (e) => {
+                        if(window.mediaManager.audio && window.mediaManager.audio.duration) {
+                            window.mediaManager.audio.currentTime = (e.target.value / 100) * window.mediaManager.audio.duration;
+                        }
+                    });
+
+                    if (window.mediaManager.currentIndex !== -1) {
+                        const track = window.mediaManager.playlist[window.mediaManager.currentIndex];
+                        root.querySelector('#app-media-title').innerText = track.title;
+                        root.querySelector('#app-media-artist').innerText = track.artist;
+                        root.querySelector('#app-media-cover').src = track.cover;
+                        
+                        const isPaused = window.mediaManager.audio.paused;
+                        const btn = root.querySelector('#app-media-play');
+                        btn.innerHTML = isPaused ? '<i data-lucide="play" class="w-5 h-5 ml-1 fill-current"></i>' : '<i data-lucide="pause" class="w-5 h-5 fill-current"></i>';
+                        lucide.createIcons({root: btn});
+                    }
                 }
             },
 
@@ -1637,7 +1813,23 @@ Keep your conversational responses concise. Do not explain the tags to the user.
 
                                     <div class="flex justify-end gap-2 mt-2 pt-4 border-t border-gray-100 dark:border-gray-800">
                                         <button id="msg-new-cancel" class="px-5 py-2.5 rounded-full text-[#0b57d0] dark:text-[#a8c7fa] hover:bg-[#f0f4f9] dark:hover:bg-[#131314] font-medium transition-colors w-full">Cancel</button>
+                                    </div>
+                                </div>
                             </div>
+                            
+                            <!-- Invite Modal -->
+                            <div id="msg-invite-modal" class="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+                                <div class="bg-white dark:bg-[#1e1e1f] w-full max-w-sm rounded-[1.5rem] shadow-2xl p-6 transform scale-95 transition-all" id="msg-invite-modal-content">
+                                    <h2 class="text-xl font-normal mb-1 text-gray-900 dark:text-white">Invite to Room</h2>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Share this secret code with others so they can join.</p>
+                                    <div class="flex gap-2 mb-6">
+                                        <input type="text" id="msg-invite-code-display" readonly class="flex-1 bg-[#f0f4f9] dark:bg-[#131314] rounded-lg px-4 py-3 border-none outline-none text-gray-900 dark:text-gray-100 font-mono text-center tracking-widest text-lg selection:bg-blue-200">
+                                        <button id="msg-invite-copy-btn" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg transition-colors flex items-center justify-center"><i data-lucide="copy" class="w-5 h-5"></i></button>
+                                    </div>
+                                    <button id="msg-invite-close" class="px-5 py-2.5 rounded-full bg-[#0b57d0] hover:bg-[#0842a0] dark:bg-[#a8c7fa] dark:hover:bg-[#8ab4f8] text-white dark:text-[#062e6f] font-medium transition-colors w-full">Done</button>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 `,
@@ -2366,7 +2558,7 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                     
                     proxyBtn.onclick = () => { proxyEnabled = !proxyEnabled; if(proxyEnabled) { proxyBtn.innerHTML = '<i data-lucide="shield-check" class="w-4 h-4 text-green-400"></i>'; proxyBtn.title = "Nexus Proxy: ON (Bypassing blocks)"; proxyBtn.classList.remove('text-red-400', 'hover:bg-red-500/20'); proxyBtn.classList.add('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); window.notify("Proxy Enabled", "Advanced routing active."); } else { proxyBtn.innerHTML = '<i data-lucide="shield-off" class="w-4 h-4 text-red-400"></i>'; proxyBtn.title = "Nexus Proxy: OFF (Click to bypass blocks)"; proxyBtn.classList.remove('text-green-400', 'bg-green-500/20', 'hover:bg-green-500/30'); proxyBtn.classList.add('text-red-400', 'hover:bg-red-500/20'); window.notify("Proxy Disabled", "Direct connection active."); } lucide.createIcons({root: proxyBtn}); if(tabs[activeTabId] && tabs[activeTabId].url !== 'home') load(tabs[activeTabId].url); };
 
-                    const createTab = (url = 'home') => { const tId = 'tab-' + (++tabCounter); const tabBtn = document.createElement('div'); tabBtn.className = 'chrome-tab group flex items-center justify-between gap-2 px-3 py-1.5 text-cyan-700 hover:bg-cyan-900/30 rounded-t-md min-w-[140px] max-w-[220px] cursor-pointer border-t border-l border-r border-transparent relative shrink-0 transition-all mt-1'; tabBtn.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i data-lucide="zap" class="w-3 h-3 shrink-0 tab-icon"></i><span class="truncate text-xs tab-title">New Tab</span></div><button class="close-tab hover:bg-cyan-500/30 hover:text-cyan-200 text-cyan-600 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all shrink-0"><i data-lucide="x" class="w-3 h-3"></i></button>`; tabBar.insertBefore(tabBtn, newTabBtn); const contentDiv = document.createElement('div'); contentDiv.className = 'absolute inset-0 w-full h-full hidden bg-white'; const frame = document.createElement('iframe'); frame.className = 'w-full h-full border-none hidden bg-white'; frame.sandbox = 'allow-downloads allow-forms allow-modals allow-pointer-lock allow-presentation allow-same-origin allow-scripts'; const mock = document.createElement('div'); mock.className = 'absolute inset-0 bg-[#0a0a0f] overflow-y-auto hidden'; contentDiv.appendChild(frame); contentDiv.appendChild(mock); contentContainer.appendChild(contentDiv); tabs[tId] = { btn: tabBtn, content: contentDiv, frame, mock, url: '', title: 'New Tab' }; tabBtn.onmousedown = (e) => { if(!e.target.closest('.close-tab')) switchTab(tId); }; tabBtn.querySelector('.close-tab').onmousedown = (e) => { e.stopPropagation(); closeTab(tId); }; lucide.createIcons({root: tabBtn}); switchTab(tId); load(url, tId); }; 
+                    const createTab = (url = 'home') => { const tId = 'tab-' + (++tabCounter); const tabBtn = document.createElement('div'); tabBtn.className = 'chrome-tab group flex items-center justify-between gap-2 px-3 py-1.5 text-cyan-700 hover:bg-cyan-900/30 rounded-t-md min-w-[140px] max-w-[220px] cursor-pointer border-t border-l border-r border-transparent relative shrink-0 transition-all mt-1'; tabBtn.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i data-lucide="zap" class="w-3 h-3 shrink-0 tab-icon"></i><span class="truncate text-xs tab-title">New Tab</span></div><button class="close-tab hover:bg-cyan-500/30 hover:text-cyan-200 text-cyan-600 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all shrink-0"><i data-lucide="x" class="w-3 h-3"></i></button>`; tabBar.insertBefore(tabBtn, newTabBtn); const contentDiv = document.createElement('div'); contentDiv.className = 'absolute inset-0 w-full h-full hidden bg-white'; const frame = document.createElement('iframe'); frame.className = 'w-full h-full border-none hidden bg-white'; const mock = document.createElement('div'); mock.className = 'absolute inset-0 bg-[#0a0a0f] overflow-y-auto hidden'; contentDiv.appendChild(frame); contentDiv.appendChild(mock); contentContainer.appendChild(contentDiv); tabs[tId] = { btn: tabBtn, content: contentDiv, frame, mock, url: '', title: 'New Tab' }; tabBtn.onmousedown = (e) => { if(!e.target.closest('.close-tab')) switchTab(tId); }; tabBtn.querySelector('.close-tab').onmousedown = (e) => { e.stopPropagation(); closeTab(tId); }; lucide.createIcons({root: tabBtn}); switchTab(tId); load(url, tId); }; 
                     const switchTab = (tId) => { if(!tabs[tId]) return; activeTabId = tId; Object.keys(tabs).forEach(id => { const t = tabs[id]; if(id === tId) { t.btn.classList.add('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.remove('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.remove('hidden'); input.value = (t.url === 'home') ? '' : t.url; } else { t.btn.classList.remove('bg-black/60', 'text-cyan-300', 'border-cyan-500/50', 'shadow-[0_-4px_10px_rgba(34,211,238,0.1)]'); t.btn.classList.add('text-cyan-700', 'hover:bg-cyan-900/30', 'border-transparent', 'mt-1'); t.content.classList.add('hidden'); } }); }; 
                     const closeTab = (tId) => { const t = tabs[tId]; if(!t) return; t.btn.remove(); t.content.remove(); delete tabs[tId]; const remaining = Object.keys(tabs); if(remaining.length === 0) { createTab('home'); } else if (activeTabId === tId) { switchTab(remaining[remaining.length - 1]); } }; 
                     const load = (url, tId = activeTabId) => { 
@@ -2390,8 +2582,7 @@ Keep your conversational responses concise. Do not explain the tags to the user.
                         t.frame.src = finalUrl;
                     } else if(proxyEnabled && !target.startsWith('file://') && !target.includes('google.com')) { 
                         t.frame.removeAttribute('srcdoc');
-                        // Use Via (Hypothesis) Reverse Proxy for robust dynamic website rendering
-                        t.frame.src = 'https://via.hypothes.is/' + finalUrl;
+                        t.frame.src = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(finalUrl);
                     } else {
                         t.frame.removeAttribute('srcdoc');
                         t.frame.src = finalUrl; 
@@ -2850,6 +3041,18 @@ Keep your conversational responses concise. Do not explain the tags to the user.
 
         const appManager = {
             openApp: (appId, arg, restoreState = null) => {
+                if (appId === 'nexusDocs' && (!fs.getPath('/home/user/Desktop') || !fs.getPath('/home/user/Desktop').children["Nexus Docs"])) {
+                    if (confirm("Nexus Docs is required to create or edit documents. Would you like to install it from the Nexus Store now?")) {
+                        if (!fs.getPath('/home/user/Desktop')) fs.createPath('/home/user/Desktop', 'dir');
+                        fs.getPath('/home/user/Desktop').children["Nexus Docs"] = { type: 'link', action: "openApp('nexusDocs')", icon: 'file-text', color: 'text-blue-500' };
+                        saveFS();
+                        renderDesktop();
+                        window.notify("Nexus Store", "Nexus Docs installed successfully!");
+                    } else {
+                        return;
+                    }
+                }
+
                 const def = appDefinitions[appId];
                 if (!def) return;
 
